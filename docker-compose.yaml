@@ -4,12 +4,11 @@ services:
     container_name: vounofasaioi_db
     restart: always
     volumes:
-      - portaview-data:/var/lib/mysql
+      - vounofasaioi-data:/var/lib/mysql
       - ./configurations/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "3306:3306"
     environment:
       MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
 volumes:
-  portaview-data:
-
+  vounofasaioi-data:
