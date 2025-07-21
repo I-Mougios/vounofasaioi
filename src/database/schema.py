@@ -46,12 +46,12 @@ class UserORM(TimestampBase):
     phone: Mapped[str] = mapped_column(String(50), nullable=False)
 
     # Aliased relationship attributes
-    user_bookings: Mapped[list["BookingORM"]] = relationship(back_populates="user", lazy="selectin")
+    user_bookings: Mapped[list["BookingORM"]] = relationship(back_populates="user", lazy="select")
     user_cancellations: Mapped[list["CancellationORM"]] = relationship(
-        back_populates="user", lazy="selectin"
+        back_populates="user", lazy="select"
     )
     address: Mapped["AddressORM"] = relationship(
-        back_populates="user", uselist=False, lazy="joined"
+        back_populates="user", uselist=False, lazy="select"
     )
 
 
@@ -90,10 +90,10 @@ class BookingORM(TimestampBase):
     )
 
     # Relationships
-    user: Mapped["UserORM"] = relationship(back_populates="user_bookings", lazy="joined")
-    event: Mapped["EventORM"] = relationship(back_populates="bookings", lazy="joined")
+    user: Mapped["UserORM"] = relationship(back_populates="user_bookings", lazy="select")
+    event: Mapped["EventORM"] = relationship(back_populates="bookings", lazy="select")
     cancellation: Mapped[Optional["CancellationORM"]] = relationship(
-        back_populates="booking", uselist=False, lazy="joined"
+        back_populates="booking", uselist=False, lazy="select"
     )
 
 
@@ -114,8 +114,8 @@ class CancellationORM(TimestampBase):
     reason: Mapped[str] = mapped_column(String(255), nullable=True)
 
     # Relationships
-    user: Mapped["UserORM"] = relationship(back_populates="user_cancellations", lazy="joined")
-    booking: Mapped["BookingORM"] = relationship(back_populates="cancellation", lazy="joined")
+    user: Mapped["UserORM"] = relationship(back_populates="user_cancellations", lazy="select")
+    booking: Mapped["BookingORM"] = relationship(back_populates="cancellation", lazy="select")
 
 
 class EventORM(TimestampBase):
@@ -154,7 +154,7 @@ class EventORM(TimestampBase):
     price_per_seat: Mapped[Decimal] = mapped_column(Numeric(7, 2), nullable=False)
 
     # Relationships
-    bookings: Mapped[list["BookingORM"]] = relationship(back_populates="event", lazy="selectin")
+    bookings: Mapped[list["BookingORM"]] = relationship(back_populates="event", lazy="select")
 
 
 class AddressORM(Base):
@@ -169,7 +169,7 @@ class AddressORM(Base):
     user_id: Mapped[int] = mapped_column(
         ForeignKey(f"{users_name}.id", ondelete="CASCADE"), nullable=False, unique=True
     )
-    user: Mapped["UserORM"] = relationship(back_populates="address", lazy="joined")
+    user: Mapped["UserORM"] = relationship(back_populates="address", lazy="select")
 
 
 def reset_tables(tables_to_reset=None):
