@@ -49,7 +49,7 @@ class EventModel(BaseModel):
     arrival_time_return: AthensDateTime
     event_start_date: CustomDate
     event_end_date: CustomDate
-    reserved_seats: int
+    reserved_seats: int = 0
     total_seats: int
     price_per_seat: Decimal
     created_at: Optional[AthensDateTime] = None
