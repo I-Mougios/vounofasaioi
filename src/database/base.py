@@ -1,22 +1,53 @@
 # src/database.py
 from datetime import datetime
-from sqlalchemy import event
-from sqlalchemy import DDL
+from typing import Any
 
-from sqlalchemy.dialects.mysql import TIMESTAMP
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.sql import func
+from sqlalchemy import DDL, TIMESTAMP, event, text
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+current_timestamp = text("CURRENT_TIMESTAMP")
 
 
 class Base(DeclarativeBase):
     """Parent class for all database models."""
 
+    @classmethod
+    def sa_table(cls):
+        return cls.__table__
+
+    @classmethod
+    def columns(cls):
+        return cls.sa_table().c
+
+    @classmethod
+    def from_attributes(cls, obj: Any) -> "Base":
+        # Convert to dictionary (supports Pydantic or plain classes)
+        data = obj.model_dump() if hasattr(obj, "model_dump") else vars(obj)
+
+        # Get the ORM's mapped column keys
+        valid_keys = {col.key for col in cls.columns()}
+
+        # Filter the attributes
+        filtered_data = {k: v for k, v in data.items() if k in valid_keys}
+
+        return cls(**filtered_data)
+
+    def __getattr__(self, attr):
+        alt_name = attr + "_"
+        return super().__getattribute__(alt_name)
+
+    def __repr__(self):
+        key_values = [
+            f"{column.key}={repr(getattr(self, column.key))}" for column in self.__class__.columns()
+        ]
+        return f"{self.__class__.__name__}({', '.join(key_values)})"
+
 
 class TimestampBase(Base):
     """
     Abstact(Parent class) for tables that have the created_at and updated_at column.
-    This class ensures consistent UTC timestamping across all database operations, regardless of the server's local timezone.
+    This class ensures consistent UTC timestamping across all database operations,
+    regardless of the server's local timezone.
     **Notes about the behaviour of the class**
      - All timestamps are automatically converted to UTC before being stored in the database
      - Timezone-aware handling ensures consistent behavior across different geographic locations
@@ -25,20 +56,14 @@ class TimestampBase(Base):
     __abstract__ = True
 
     created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP, server_default=func.now(), nullable=False
+        TIMESTAMP, server_default=current_timestamp, nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP, server_default=func.now(), server_onupdate=func.now(), nullable=False
+        TIMESTAMP,
+        server_default=current_timestamp,
+        server_onupdate=current_timestamp,
+        nullable=False,
     )
-
-
-
-def _repr(self):
-    mapper = self.__class__.__mapper__
-    key_values = [
-        f"{column.key}={repr(getattr(self, column.key))}" for column in mapper.column_attrs
-    ]
-    return f"{self.__class__.__name__}({', '.join(key_values)})"
 
 
 # --- Add ON UPDATE DDL to each concrete subclass ---
@@ -51,5 +76,3 @@ def add_on_update_ddl(target, connection, **kw):
                 "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
             )
             connection.execute(ddl)
-
-Base.__repr__ = _repr
