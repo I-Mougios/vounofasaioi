@@ -12,7 +12,11 @@ from .custom_types import AthensDateTime, CustomDate
 from .utils import to_snake_alias
 
 default_configs = ConfigDict(
-    from_attributes=True, alias_generator=to_snake_alias, populate_by_name=True
+    from_attributes=True,
+    alias_generator=to_snake_alias,
+    populate_by_name=True,
+    str_strip_whitespace=True,
+    validate_assignment=True,
 )
 
 

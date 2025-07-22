@@ -14,7 +14,13 @@ def users():
             "phone": "6901234567",
             "user_bookings": None,
             "user_cancellations": None,
-            "address": None,
+            "address": {
+                "street": "45 Thessaloniki Ave",
+                "city": "Thessaloniki",
+                "postal_code": "54622",
+                "country": "Greece",
+                "user_id": 2,
+            },
         },
         {
             "first_name": "Giorgos",
@@ -26,6 +32,12 @@ def users():
             "phone": "6977654321",
             "user_bookings": None,
             "user_cancellations": None,
-            "address": None,
+            "address": {
+                "street": "123 Athens St",
+                "city": "Athens",
+                "postal_code": "10558",
+                "country": "Greece",
+                "user_id": 1,
+            },
         },
     ]

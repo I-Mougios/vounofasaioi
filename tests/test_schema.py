@@ -1,18 +1,35 @@
-import pytest  # noqa: F401
-from icecream import ic
-from sqlalchemy.orm import Session
+# tests/test_schema.py
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
-from database.engine import engine
-from database.schema import UserORM
-from models.schema import UserModel
+from models.schema import AddressModel, UserModel
+from src.enumerations import Gender
 
 
-def test_add_users(users):
-    user_models = (UserModel.model_validate(user) for user in users)
-    with Session(engine, expire_on_commit=True, autoflush=False) as session:
-        session.add_all((UserORM.from_attributes(user_model) for user_model in user_models))
-        session.flush()
-
-        result = list(session.query(UserORM).all())
-        ic(result)
-        assert len(result) == len(users)
+def test_model_configs(users):
+    user1, user2 = users
+    m1 = UserModel.model_validate(user1)
+    # Basic field-testing
+    assert isinstance(m1.date_of_birth, date) and m1.date_of_birth == date(1992, 5, 17)
+    assert isinstance(m1.address, AddressModel) and m1.address.city == "Thessaloniki"
+    assert m1.gender.value == "F" and m1.gender == Gender.FEMALE and isinstance(m1.gender, Gender)
+    #  Validate assignments active
+    m1.gender = "F"  # Check enum
+    m1.date_of_birth = "July 27, 1995"  # Check Custom Date
+    assert m1.date_of_birth.year == 1995 and m1.date_of_birth.month == 7
+    # check dayfirst=True
+    m1.date_of_birth = "07/06/1995"
+    assert m1.date_of_birth.day == 7
+    # Check AthensDateTime
+    naive_now = datetime.now()
+    m1.updated_at = datetime.now()
+    assert m1.updated_at.tzinfo == ZoneInfo("Europe/Athens")
+    assert (
+        m1.updated_at.hour == (naive_now + timedelta(hours=3)).hour
+    )  # It turns naive date to UTC and then add 3 hours
+    aware_now = datetime.now(tz=ZoneInfo("Europe/Athens"))
+    m1.updated_at = aware_now  # Nothing to do actually
+    assert m1.updated_at.hour == aware_now.hour
+    # Check str_str_whitespaces
+    m1.first_name = " John\t"
+    assert m1.first_name == "John"
