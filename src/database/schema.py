@@ -46,12 +46,18 @@ class UserORM(TimestampBase):
     phone: Mapped[str] = mapped_column(String(50), nullable=False)
 
     # Aliased relationship attributes
-    user_bookings: Mapped[list["BookingORM"]] = relationship(back_populates="user", lazy="select")
+    user_bookings: Mapped[list["BookingORM"]] = relationship(
+        back_populates="user", lazy="select", cascade="all, delete"
+    )
     user_cancellations: Mapped[list["CancellationORM"]] = relationship(
-        back_populates="user", lazy="select"
+        back_populates="user", lazy="select", cascade="all, delete", passive_deletes=True
     )
     address: Mapped["AddressORM"] = relationship(
-        back_populates="user", uselist=False, lazy="select"
+        back_populates="user",
+        uselist=False,
+        lazy="select",
+        cascade="all, delete",
+        passive_deletes=True,
     )
 
 
@@ -59,8 +65,12 @@ class BookingORM(TimestampBase):
     __tablename__ = bookings_name
 
     id_: Mapped[int] = mapped_column("id", Integer, autoincrement=True, primary_key=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{users_name}.id"), nullable=False)
-    event_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{events_name}.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(f"{users_name}.id"), nullable=False, ondelete="CASCADE"
+    )
+    event_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(f"{events_name}.id"), nullable=False, ondelete="CASCADE"
+    )
     unit_price: Mapped[Decimal] = mapped_column(
         Numeric(7, 2), nullable=False, default=Decimal("0.00")
     )
@@ -93,7 +103,11 @@ class BookingORM(TimestampBase):
     user: Mapped["UserORM"] = relationship(back_populates="user_bookings", lazy="select")
     event: Mapped["EventORM"] = relationship(back_populates="bookings", lazy="select")
     cancellation: Mapped[Optional["CancellationORM"]] = relationship(
-        back_populates="booking", uselist=False, lazy="select"
+        back_populates="booking",
+        uselist=False,
+        lazy="select",
+        cascade="all, delete",
+        passive_deletes=True,
     )
 
 
@@ -101,9 +115,11 @@ class CancellationORM(TimestampBase):
     __tablename__ = DBConfig.tables.cancellations
 
     id_: Mapped[int] = mapped_column("id", Integer, autoincrement=True, primary_key=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{users_name}.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(f"{users_name}.id"), nullable=False, ondelete="CASCADE"
+    )
     booking_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey(f"{bookings_name}.id"), nullable=False, unique=True
+        Integer, ForeignKey(f"{bookings_name}.id"), nullable=False, unique=True, ondelete="CASCADE"
     )
     cancellation_time: Mapped[datetime] = mapped_column(
         TIMESTAMP, nullable=False, server_default=current_timestamp
@@ -154,7 +170,9 @@ class EventORM(TimestampBase):
     price_per_seat: Mapped[Decimal] = mapped_column(Numeric(7, 2), nullable=False)
 
     # Relationships
-    bookings: Mapped[list["BookingORM"]] = relationship(back_populates="event", lazy="select")
+    bookings: Mapped[list["BookingORM"]] = relationship(
+        back_populates="event", lazy="select", cascade="all, delete", passive_deletes=True
+    )
 
 
 class AddressORM(Base):
@@ -167,7 +185,10 @@ class AddressORM(Base):
     country: Mapped[str] = mapped_column(String(50), nullable=False)
 
     user_id: Mapped[int] = mapped_column(
-        ForeignKey(f"{users_name}.id", ondelete="CASCADE"), nullable=False, unique=True
+        ForeignKey(f"{users_name}.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        ondelete="CASCADE",
     )
     user: Mapped["UserORM"] = relationship(back_populates="address", lazy="select")
 
