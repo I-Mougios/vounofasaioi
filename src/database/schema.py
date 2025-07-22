@@ -47,7 +47,7 @@ class UserORM(TimestampBase):
 
     # Aliased relationship attributes
     user_bookings: Mapped[list["BookingORM"]] = relationship(
-        back_populates="user", lazy="select", cascade="all, delete"
+        back_populates="user", lazy="select", cascade="all, delete", passive_deletes=True
     )
     user_cancellations: Mapped[list["CancellationORM"]] = relationship(
         back_populates="user", lazy="select", cascade="all, delete", passive_deletes=True
