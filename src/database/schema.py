@@ -66,10 +66,10 @@ class BookingORM(TimestampBase):
 
     id_: Mapped[int] = mapped_column("id", Integer, autoincrement=True, primary_key=True)
     user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey(f"{users_name}.id"), nullable=False, ondelete="CASCADE"
+        Integer, ForeignKey(f"{users_name}.id", ondelete="CASCADE"), nullable=False
     )
     event_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey(f"{events_name}.id"), nullable=False, ondelete="CASCADE"
+        Integer, ForeignKey(f"{events_name}.id", ondelete="CASCADE"), nullable=False
     )
     unit_price: Mapped[Decimal] = mapped_column(
         Numeric(7, 2), nullable=False, default=Decimal("0.00")
@@ -116,10 +116,10 @@ class CancellationORM(TimestampBase):
 
     id_: Mapped[int] = mapped_column("id", Integer, autoincrement=True, primary_key=True)
     user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey(f"{users_name}.id"), nullable=False, ondelete="CASCADE"
+        Integer, ForeignKey(f"{users_name}.id", ondelete="CASCADE"), nullable=False
     )
     booking_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey(f"{bookings_name}.id"), nullable=False, unique=True, ondelete="CASCADE"
+        Integer, ForeignKey(f"{bookings_name}.id", ondelete="CASCADE"), nullable=False, unique=True
     )
     cancellation_time: Mapped[datetime] = mapped_column(
         TIMESTAMP, nullable=False, server_default=current_timestamp
@@ -185,10 +185,7 @@ class AddressORM(Base):
     country: Mapped[str] = mapped_column(String(50), nullable=False)
 
     user_id: Mapped[int] = mapped_column(
-        ForeignKey(f"{users_name}.id", ondelete="CASCADE"),
-        nullable=False,
-        unique=True,
-        ondelete="CASCADE",
+        ForeignKey(f"{users_name}.id", ondelete="CASCADE"), nullable=False, unique=True
     )
     user: Mapped["UserORM"] = relationship(back_populates="address", lazy="select")
 
