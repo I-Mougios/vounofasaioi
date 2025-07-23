@@ -344,7 +344,6 @@ def test_chained_on_delete_cascade_when_removing_an_event(users, bookings, event
 
 def test_populated_db_inserts(populated_db):
     session = populated_db
-
     # Check users count
     user_count = session.query(UserORM).count()
     assert user_count > 0
@@ -373,3 +372,21 @@ def test_populated_db_inserts(populated_db):
     cancellation = session.query(CancellationORM).first()
     assert cancellation.booking is not None
     assert cancellation.user is not None
+
+
+def test_on_delete_set_null_relationships(populated_db):
+    session = populated_db
+
+    cancellations_result = session.query(CancellationORM).all()
+    assert len(cancellations_result) != 0
+    cancellation_user_id = cancellations_result.pop().user_id
+    session.execute(sa.delete(UserORM).where(UserORM.id_ == cancellation_user_id))
+
+    bookings_result = (
+        session.query(BookingORM).filter(BookingORM.user_id == None).all()  # noqa:  E711
+    )
+    cancellations_result = (
+        session.query(CancellationORM).filter(CancellationORM.user_id == None).all()  # noqa:  E711
+    )
+    assert len(bookings_result) != 0
+    assert len(cancellations_result) != 0
