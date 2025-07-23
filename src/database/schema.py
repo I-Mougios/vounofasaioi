@@ -196,7 +196,6 @@ class AddressORM(Base):
 def reset_tables(tables_to_reset=None):
     metadata = Base.metadata
 
-    metadata.tables
     if not tables_to_reset:
         # Reset all tables
         tables = list(metadata.tables.values())
