@@ -6,7 +6,6 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
 
-from icecream import ic
 from sqlalchemy import (
     TIMESTAMP,
     Date,
@@ -47,14 +46,14 @@ class UserORM(TimestampBase):
 
     # Aliased relationship attributes
     user_bookings: Mapped[list["BookingORM"]] = relationship(
-        back_populates="user", lazy="select", cascade="all, delete", passive_deletes=True
+        back_populates="user", lazy="select", passive_deletes=True
     )
     user_cancellations: Mapped[list["CancellationORM"]] = relationship(
-        back_populates="user", lazy="select", cascade="all, delete", passive_deletes=True
+        back_populates="user", lazy="select", passive_deletes=True
     )
     address: Mapped["AddressORM"] = relationship(
         back_populates="user",
-        uselist=False,
+        uselist=False,  # Unnecessary as SQLAlchemy can infer it for the annotation of LHS
         lazy="select",
         cascade="all, delete",
         passive_deletes=True,
@@ -66,13 +65,13 @@ class BookingORM(TimestampBase):
 
     id_: Mapped[int] = mapped_column("id", Integer, autoincrement=True, primary_key=True)
     user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey(f"{users_name}.id", ondelete="CASCADE"), nullable=False
+        Integer, ForeignKey(f"{users_name}.id", ondelete="SET NULL"), nullable=True
     )
     event_id: Mapped[int] = mapped_column(
         Integer, ForeignKey(f"{events_name}.id", ondelete="CASCADE"), nullable=False
     )
     unit_price: Mapped[Decimal] = mapped_column(
-        Numeric(7, 2), nullable=False, default=Decimal("0.00")
+        Numeric(7, 2, asdecimal=True), nullable=False, default=Decimal("0.00")
     )
     booking_time: Mapped[datetime] = mapped_column(
         TIMESTAMP, nullable=False, server_default=current_timestamp
@@ -81,7 +80,7 @@ class BookingORM(TimestampBase):
 
     # Payment fields
     amount_paid: Mapped[Decimal] = mapped_column(
-        Numeric(7, 2), nullable=False, default=Decimal("0.00")
+        Numeric(7, 2, asdecimal=True), nullable=False, default=Decimal("0.00")
     )
     payment_method: Mapped[PaymentMethod] = mapped_column(Enum(PaymentMethod), nullable=False)
     payment_time: Mapped[datetime] = mapped_column(
@@ -96,7 +95,7 @@ class BookingORM(TimestampBase):
         server_default=text(f"'{BookingStatus.ACTIVE.value}'"),
     )
     refund_amount: Mapped[Decimal] = mapped_column(
-        Numeric(7, 2), nullable=False, default=Decimal("0.00")
+        Numeric(7, 2, asdecimal=True), nullable=False, default=Decimal("0.00")
     )
 
     # Relationships
@@ -116,7 +115,7 @@ class CancellationORM(TimestampBase):
 
     id_: Mapped[int] = mapped_column("id", Integer, autoincrement=True, primary_key=True)
     user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey(f"{users_name}.id", ondelete="CASCADE"), nullable=False
+        Integer, ForeignKey(f"{users_name}.id", ondelete="SET NULL"), nullable=True
     )
     booking_id: Mapped[int] = mapped_column(
         Integer, ForeignKey(f"{bookings_name}.id", ondelete="CASCADE"), nullable=False, unique=True
@@ -125,13 +124,17 @@ class CancellationORM(TimestampBase):
         TIMESTAMP, nullable=False, server_default=current_timestamp
     )
     refund_amount: Mapped[Decimal] = mapped_column(
-        Numeric(7, 2), nullable=False, default=Decimal("0.00")
+        Numeric(7, 2, asdecimal=True), nullable=False, default=Decimal("0.00")
     )
     reason: Mapped[str] = mapped_column(String(255), nullable=True)
 
     # Relationships
-    user: Mapped["UserORM"] = relationship(back_populates="user_cancellations", lazy="select")
-    booking: Mapped["BookingORM"] = relationship(back_populates="cancellation", lazy="select")
+    user: Mapped["UserORM"] = relationship(
+        back_populates="user_cancellations", lazy="select", passive_deletes=True
+    )
+    booking: Mapped["BookingORM"] = relationship(
+        back_populates="cancellation", lazy="select", cascade="all, delete", passive_deletes=True
+    )
 
 
 class EventORM(TimestampBase):
@@ -167,7 +170,7 @@ class EventORM(TimestampBase):
     # Seats and pricing(Source of Truth)
     reserved_seats: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     total_seats: Mapped[int] = mapped_column(Integer, nullable=False)
-    price_per_seat: Mapped[Decimal] = mapped_column(Numeric(7, 2), nullable=False)
+    price_per_seat: Mapped[Decimal] = mapped_column(Numeric(7, 2, asdecimal=True), nullable=False)
 
     # Relationships
     bookings: Mapped[list["BookingORM"]] = relationship(
@@ -193,7 +196,7 @@ class AddressORM(Base):
 def reset_tables(tables_to_reset=None):
     metadata = Base.metadata
 
-    ic(metadata.tables)
+    metadata.tables
     if not tables_to_reset:
         # Reset all tables
         tables = list(metadata.tables.values())
@@ -213,11 +216,6 @@ def reset_tables(tables_to_reset=None):
 
 
 if __name__ == "__main__":
-
-    if DBConfig.globals.get("icecream_enabled", default=False, cast=bool):
-        ic.enable()
-    else:
-        ic.disable()
 
     parser = argparse.ArgumentParser(description="Reset tables by dropping and recreating.")
     parser.add_argument(
