@@ -1,12 +1,22 @@
 # tests/test_schema.py
 from datetime import date, datetime, timedelta
+from decimal import Decimal
 from zoneinfo import ZoneInfo
 
+import pytest
+import sqlalchemy as sa
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from database.engine import engine
-from database.schema import AddressORM, UserORM
-from models.schema import AddressModel, UserModel
+from database.schema import AddressORM, BookingORM, CancellationORM, EventORM, UserORM
+from models.schema import (
+    AddressModel,
+    BookingModel,
+    CancellationModel,
+    EventModel,
+    UserModel,
+)
 from src.enumerations import Gender
 
 
@@ -133,3 +143,233 @@ def test_users_address_on_delete_cascade(users):
         assert len(result) == 1
         session.delete(u2)
         session.commit()
+
+
+def test_user_bookings_relationship(users, bookings):
+    user1, _ = users
+    booking1, *_ = bookings
+
+    # Create user and address
+    m1 = UserModel.model_validate(user1)
+    u1 = UserORM.from_attributes(m1)
+    a1 = AddressORM.from_attributes(m1.address)
+    u1.address = a1
+
+    # Create booking
+    b1_model = BookingModel.model_validate(booking1)
+    b1 = BookingORM.from_attributes(b1_model)
+    with Session(bind=engine) as session:
+        session.add(u1)
+        session.flush()
+        with pytest.raises(IntegrityError) as exc_info:
+            session.add(b1)
+            session.flush()
+        assert (
+            "CONSTRAINT `test_bookings_ibfk_1` FOREIGN KEY (`user_id`)"
+            " REFERENCES `test_users` (`id`) ON DELETE SET NULL)')"
+        ) in exc_info.value.args[0]
+
+
+def test_user_bookings_event_chain_relationship(users, bookings):
+    user1, _ = users
+    booking1, *_ = bookings
+
+    # Create user and address
+    m1 = UserModel.model_validate(user1)
+    u1 = UserORM.from_attributes(m1)
+    a1 = AddressORM.from_attributes(m1.address)
+    u1.address = a1
+
+    # Create booking
+    b1_model = BookingModel.model_validate(booking1)
+    b1 = BookingORM.from_attributes(b1_model)
+    with Session(bind=engine) as session:
+        session.add(u1)
+        session.flush()
+
+        b1.user_id = u1.id  # Now that my user get id I can associate it with the booking
+        with pytest.raises(IntegrityError) as exc_info:
+            session.add(b1)
+            session.flush()
+
+        assert (
+            "CONSTRAINT `test_bookings_ibfk_2` FOREIGN KEY (`event_id`)"
+            " REFERENCES `test_events` (`id`) ON DELETE CASCADE)')"
+        ) in exc_info.value.args[0]
+
+
+def test_user_event_booking_chain_correct_insertion(users, bookings, events):
+    user1, _ = users
+    booking1, *_ = bookings
+    event1, _ = events
+    # Create user and address
+    m1 = UserModel.model_validate(user1)
+    u1 = UserORM.from_attributes(m1)
+    a1 = AddressORM.from_attributes(m1.address)
+    u1.address = a1
+    # Create booking
+    b1_model = BookingModel.model_validate(booking1)
+    b1 = BookingORM.from_attributes(b1_model)
+    # Create event
+    e1_model = EventModel.model_validate(event1)
+    e1 = EventORM.from_attributes(e1_model)
+    with Session(bind=engine) as session:
+        session.add(u1)
+        session.add(e1)
+        session.flush()
+
+        b1.user_id = u1.id
+        b1.event_id = e1.id
+        session.add(b1)
+        session.flush()
+
+        booking_records = list(session.query(BookingORM).all())
+        assert len(booking_records) == 1
+        assert booking_records[0].event_id == e1.id
+        assert booking_records[0].user_id == u1.id
+
+
+def test_user_event_booking_cancellation_chain(users, bookings, events, cancellations):
+    user1, _ = users
+    booking1, *_ = bookings
+    event1, *_ = events
+    cancellation1, *_ = cancellations
+    # Create user and address
+    m1 = UserModel.model_validate(user1)
+    u1 = UserORM.from_attributes(m1)
+    a1 = AddressORM.from_attributes(m1.address)
+    u1.address = a1
+    # Create event
+    e1_model = EventModel.model_validate(event1)
+    e1 = EventORM.from_attributes(e1_model)
+    # Create cancellation
+    c1_model = CancellationModel.model_validate(cancellation1)
+    c1 = CancellationORM.from_attributes(c1_model)
+    with Session(bind=engine) as session:
+        session.add(u1)
+        session.add(e1)
+        session.flush()
+        with pytest.raises(IntegrityError) as exc_info:
+            session.add(c1)
+            session.flush()
+
+        assert (
+            "CONSTRAINT `test_cancellations_ibfk_2` FOREIGN KEY (`booking_id`)"
+            " REFERENCES `test_bookings` (`id`) ON DELETE CASCADE"
+        ) in exc_info.value.args[0]
+
+
+def test_user_event_booking_cancellation_correct_insertion(users, bookings, events, cancellations):
+    user1, _ = users
+    booking1, *_ = bookings
+    event1, *_ = events
+    cancellation1, *_ = cancellations
+    # Create user and address
+    m1 = UserModel.model_validate(user1)
+    u1 = UserORM.from_attributes(m1)
+    a1 = AddressORM.from_attributes(m1.address)
+    u1.address = a1
+    # Create booking
+    b1_model = BookingModel.model_validate(booking1)
+    b1 = BookingORM.from_attributes(b1_model)
+    # Create event
+    e1_model = EventModel.model_validate(event1)
+    e1 = EventORM.from_attributes(e1_model)
+    # Create cancellation
+    c1_model = CancellationModel.model_validate(cancellation1)
+    c1 = CancellationORM.from_attributes(c1_model)
+    with Session(bind=engine) as session:
+        session.add(u1)
+        session.add(e1)
+        session.flush()
+
+        b1.user_id = u1.id
+        b1.event_id = e1.id
+        session.add(b1)
+        session.flush()
+
+        c1.user_id = u1.id
+        c1.booking_id = b1.id
+        session.add(c1)
+        session.flush()
+
+        cancellation = list(session.query(CancellationORM).all())[0]
+        assert cancellation.booking.event_id == e1.id
+        assert cancellation.booking.id == b1.id
+        assert cancellation.user.id == u1.id
+
+
+def test_chained_on_delete_cascade_when_removing_an_event(users, bookings, events, cancellations):
+    user1, _ = users
+    booking1, *_ = bookings
+    event1, *_ = events
+    cancellation1, *_ = cancellations
+    # Create user and address
+    m1 = UserModel.model_validate(user1)
+    u1 = UserORM.from_attributes(m1)
+    a1 = AddressORM.from_attributes(m1.address)
+    u1.address = a1
+    # Create booking
+    b1_model = BookingModel.model_validate(booking1)
+    b1 = BookingORM.from_attributes(b1_model)
+    # Create event
+    e1_model = EventModel.model_validate(event1)
+    e1 = EventORM.from_attributes(e1_model)
+    # Create cancellation
+    c1_model = CancellationModel.model_validate(cancellation1)
+    c1 = CancellationORM.from_attributes(c1_model)
+    with Session(bind=engine) as session:
+        # Insert the user
+        session.add(u1)
+        session.add(e1)
+        session.flush()
+        # Insert the booking
+        b1.user_id = u1.id
+        b1.event_id = e1.id
+        session.add(b1)
+        session.flush()
+        # Insert the cancellation
+        c1.user_id = u1.id
+        c1.booking_id = b1.id
+        session.add(c1)
+        session.flush()
+
+        # The deletion of the event will cascade the deletion of the booking
+        # which in turn will cascade the deletion of cancellation
+        session.delete(e1)
+
+        assert session.scalar(sa.select(sa.func.count(BookingORM.id_))) == 0
+        assert session.scalar(sa.select(sa.func.count(CancellationORM.id_))) == 0
+
+
+def test_populated_db_inserts(populated_db):
+    session = populated_db
+
+    # Check users count
+    user_count = session.query(UserORM).count()
+    assert user_count > 0
+
+    # Check events count
+    event_count = session.query(EventORM).count()
+    assert event_count > 0
+
+    # Check bookings count
+    booking_count = session.query(BookingORM).count()
+    assert booking_count > 0
+
+    # Check cancellations count
+    cancellation_count = session.query(CancellationORM).count()
+    assert cancellation_count > 0
+
+    # Verify a booking links to a user and event
+    booking = session.query(BookingORM).first()
+    assert booking.user is not None
+    assert booking.event is not None
+    assert (
+        isinstance(booking.amount_paid, Decimal) and booking.amount_paid.as_tuple().exponent == -2
+    )
+
+    # Verify a cancellation links to a booking and user
+    cancellation = session.query(CancellationORM).first()
+    assert cancellation.booking is not None
+    assert cancellation.user is not None

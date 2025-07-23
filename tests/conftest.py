@@ -1,4 +1,13 @@
+# tests/conftest.py
+from itertools import cycle
+
 import pytest
+import sqlalchemy as sa
+from sqlalchemy.orm import Session
+
+from database.engine import engine  # adjust import as needed
+from database.schema import AddressORM, BookingORM, CancellationORM, EventORM, UserORM
+from models.schema import BookingModel, CancellationModel, EventModel, UserModel
 
 
 @pytest.fixture(scope="function")
@@ -120,24 +129,6 @@ def bookings():
             "payment_method": "card",
             "status": "active",
         },
-        {
-            "user_id": 3,  # not existing user
-            "event_id": 2,
-            "unit_price": "150.00",
-            "seats": 1,
-            "amount_paid": "150.00",
-            "payment_method": "cash",
-            "status": "active",
-        },
-        {
-            "user_id": 2,
-            "event_id": 3,  # not existing event
-            "unit_price": "150.00",
-            "seats": 1,
-            "amount_paid": "150.00",
-            "payment_method": "transfer",
-            "status": "active",
-        },
     ]
 
 
@@ -152,3 +143,59 @@ def cancellations():
             "reason": "Change of plans",
         }
     ]
+
+
+@pytest.fixture(scope="function")
+def populated_db(users, events, bookings, cancellations):
+    session = Session(bind=engine)
+
+    try:
+        print("Starting inserting users, events and bookings and cancellations...")
+        # Add Users & Addresses
+        for u_dict in users:
+            model = UserModel.model_validate(u_dict)
+            orm = UserORM.from_attributes(model)
+            orm.address = AddressORM.from_attributes(model.address)
+            session.add(orm)
+        session.flush()
+        user_ids = cycle(session.scalars(sa.select(UserORM.id_)).all())
+
+        # Add Events
+        for e_dict in events:
+            model = EventModel.model_validate(e_dict)
+            orm = EventORM.from_attributes(model)
+            session.add(orm)
+        session.flush()
+        event_ids = cycle(session.scalars(sa.select(EventORM.id_)).all())
+
+        # Add Bookings
+        user_book_id_combs = []
+        for b_dict in bookings:
+            model = BookingModel.model_validate(b_dict)
+            orm = BookingORM.from_attributes(model)
+            user_id, event_id = next(user_ids), next(event_ids)
+            orm.user_id = user_id
+            orm.event_id = event_id
+            session.add(orm)
+            session.flush()
+            user_book_id_combs.append((user_id, orm.id_))
+
+        # Add Cancellations
+        for c_dict in cancellations:
+            model = CancellationModel.model_validate(c_dict)
+            orm = CancellationORM.from_attributes(model)
+            user_id, booking_id = user_book_id_combs.pop(0)
+            orm.user_id = user_id
+            orm.booking_id = booking_id
+            session.add(orm)
+        session.flush()
+
+        yield session  # Pass control to test
+
+    finally:
+        print(
+            "Finished inserting users, events and bookings and cancellations...\n"
+            "Closing session without commiting transactions..."
+        )
+        session.rollback()  # Undo all changes
+        session.close()
