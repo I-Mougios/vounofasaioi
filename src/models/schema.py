@@ -59,7 +59,7 @@ class EventModel(BaseModel):
     created_at: Optional[AthensDateTime] = None
     updated_at: Optional[AthensDateTime] = None
     # Relationship
-    booking: Optional[BookingModel] = None
+    bookings: Optional[list[BookingModel]] = None
 
     model_config = default_configs
 
@@ -80,7 +80,6 @@ class BookingModel(BaseModel):
     updated_at: Optional[AthensDateTime] = None
 
     # Relationships
-    event: Optional[EventModel] = None
     cancellation: Optional[CancellationModel] = None
 
     model_config = default_configs
@@ -96,8 +95,6 @@ class CancellationModel(BaseModel):
     reason: Optional[str] = Field(None, max_length=255)
     created_at: Optional[AthensDateTime] = None
     updated_at: Optional[AthensDateTime] = None
-    # Relationship
-    booking: Optional[BookingModel] = None
 
     model_config = default_configs
 
