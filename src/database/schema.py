@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy import (
+    DDL,
     TIMESTAMP,
     Date,
     Enum,
@@ -15,6 +16,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    event,
     text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -176,6 +178,31 @@ class EventORM(TimestampBase):
     bookings: Mapped[list["BookingORM"]] = relationship(
         back_populates="event", lazy="select", cascade="all, delete", passive_deletes=True
     )
+
+
+check_seats_before_insert = DDL(
+    f"""
+CREATE TRIGGER bookings_check_seats_before_insert
+BEFORE INSERT ON {DBConfig.tables.bookings}
+FOR EACH ROW
+BEGIN
+    DECLARE available_seats INT;
+    DECLARE current_reserved INT;
+    
+    SELECT (total_seats  - reserved_seats)
+    INTO available_seats
+    FROM {DBConfig.tables.events}
+    WHERE id = NEW.event_id;
+    
+    IF NEW.seats > available_seats THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Not enough available seats for this event.';
+    END IF;
+END ;
+"""
+)
+
+event.listen(BookingORM.sa_table(), "after_create", check_seats_before_insert)
 
 
 class AddressORM(Base):
