@@ -1,8 +1,5 @@
 # tests/conftest.py
-from itertools import cycle
-
 import pytest
-import sqlalchemy as sa
 from sqlalchemy.orm import Session
 
 from database.engine import engine  # adjust import as needed
@@ -30,6 +27,7 @@ def session():
         session.close()
 
 
+# ======== USERS & ADDRESSES========
 @pytest.fixture(scope="function")
 def users():
     return [
@@ -119,10 +117,12 @@ def users_with_address_orm(users_models):
     return orms
 
 
+# ======== EVENTS ========
 @pytest.fixture(scope="function")
 def events():
     return [
         {
+            "id": 1,
             "name": "Beach Getaway",
             "description": "Relaxing weekend trip to the beach.",
             "status": "active",
@@ -139,6 +139,7 @@ def events():
             "price_per_seat": "120.00",
         },
         {
+            "id": 2,
             "name": "Mountain Hiking",
             "description": "Explore Mount Olympus with experienced guides.",
             "status": "active",
@@ -158,9 +159,28 @@ def events():
 
 
 @pytest.fixture(scope="function")
+def events_models(events):
+    return [EventModel.model_validate(d) for d in events]
+
+
+@pytest.fixture(scope="function")
+def events_orm(events_models):
+    orms = []
+    for model in events_models:
+        orm = EventORM.from_attributes(model)
+        orm.id_ = model.id_
+        orms.append(orm)
+    return orms
+
+
+# ======== BOOKINGS ========
+
+
+@pytest.fixture(scope="function")
 def bookings():
     return [
         {
+            "id": 1,
             "user_id": 1,
             "event_id": 1,
             "unit_price": "120.00",
@@ -170,15 +190,17 @@ def bookings():
             "status": "active",
         },
         {
+            "id": 2,
             "user_id": 2,
             "event_id": 1,
             "unit_price": "120.00",
             "seats": 1,
             "amount_paid": "120.00",
-            "payment_method": "card",
+            "payment_method": "cash",
             "status": "active",
         },
         {
+            "id": 3,
             "user_id": 1,
             "event_id": 2,
             "unit_price": "120.00",
@@ -188,6 +210,7 @@ def bookings():
             "status": "active",
         },
         {
+            "id": 4,
             "user_id": 2,
             "event_id": 2,
             "unit_price": "150.00",
@@ -199,6 +222,22 @@ def bookings():
     ]
 
 
+@pytest.fixture(scope="function")
+def bookings_models(bookings):
+    return [BookingModel.model_validate(d) for d in bookings]
+
+
+@pytest.fixture(scope="function")
+def bookings_orm(bookings_models):
+    orms = []
+    for model in bookings_models:
+        orm = BookingORM.from_attributes(model)
+        orm.id_ = model.id_
+        orms.append(orm)
+    return orms
+
+
+# ======== CANCELLATIONS ========
 @pytest.fixture(scope="function")
 def cancellations():
     return [
@@ -213,56 +252,24 @@ def cancellations():
 
 
 @pytest.fixture(scope="function")
-def populated_db(users, events, bookings, cancellations):
-    session = Session(bind=engine)
+def cancellations_models(cancellations):
+    return [CancellationModel.model_validate(d) for d in cancellations]
 
-    try:
-        print("Starting inserting users, events and bookings and cancellations...")
-        # Add Users & Addresses
-        for u_dict in users:
-            model = UserModel.model_validate(u_dict)
-            orm = UserORM.from_attributes(model)
-            orm.address = AddressORM.from_attributes(model.address)
-            session.add(orm)
-        session.flush()
-        user_ids = cycle(session.scalars(sa.select(UserORM.id_)).all())
 
-        # Add Events
-        for e_dict in events:
-            model = EventModel.model_validate(e_dict)
-            orm = EventORM.from_attributes(model)
-            session.add(orm)
-        session.flush()
-        event_ids = cycle(session.scalars(sa.select(EventORM.id_)).all())
+@pytest.fixture(scope="function")
+def cancellations_orm(cancellations_models):
+    orms = []
+    for model in cancellations_models:
+        orm = CancellationORM.from_attributes(model)
+        orm.id_ = model.id_
+        orms.append(orm)
+    return orms
 
-        # Add Bookings
-        user_book_id_combs = []
-        for b_dict in bookings:
-            model = BookingModel.model_validate(b_dict)
-            orm = BookingORM.from_attributes(model)
-            user_id, event_id = next(user_ids), next(event_ids)
-            orm.user_id = user_id
-            orm.event_id = event_id
-            session.add(orm)
-            session.flush()
-            user_book_id_combs.append((user_id, orm.id_))
 
-        # Add Cancellations
-        for c_dict in cancellations:
-            model = CancellationModel.model_validate(c_dict)
-            orm = CancellationORM.from_attributes(model)
-            user_id, booking_id = user_book_id_combs.pop(0)
-            orm.user_id = user_id
-            orm.booking_id = booking_id
-            session.add(orm)
-        session.flush()
-
-        yield session  # Pass control to test
-
-    finally:
-        print(
-            "Finished inserting users, events and bookings and cancellations...\n"
-            "Closing session without commiting transactions..."
-        )
-        session.rollback()  # Undo all changes
-        session.close()
+@pytest.fixture(scope="function")
+def populated_db(session, users_orm, events_orm, bookings_orm, cancellations_orm):
+    print("Starting inserting users, events and bookings and cancellations...")
+    session.add_all(users_orm)
+    session.add_all(events_orm)
+    session.add_all(bookings_orm)
+    session.add_all(cancellations_orm)

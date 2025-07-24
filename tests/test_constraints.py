@@ -1,0 +1,40 @@
+import pytest
+from icecream import ic
+from sqlalchemy.exc import IntegrityError
+
+from database.engine import DBConfig
+
+if DBConfig.globals.get("icecream_enabled", False):
+    ic.enable()
+else:
+    ic.disable()
+
+
+def test_bookings_without_users(session, events_orm, bookings_orm):
+    session.add_all(events_orm)
+    session.flush()
+
+    with pytest.raises(IntegrityError) as e:
+        session.add_all(bookings_orm)
+        session.flush()
+
+    assert "CONSTRAINT `test_bookings_ibfk_1`" in str(e.value.args[0])
+
+
+def test_bookings_without_events(session, users_orm, bookings_orm):
+    session.add_all(users_orm)
+    session.flush()
+
+    with pytest.raises(IntegrityError) as e:
+        session.add_all(bookings_orm)
+        session.flush()
+
+    assert "CONSTRAINT `test_bookings_ibfk_2" in str(e.value.args[0])
+
+
+def test_cancellation_without_events(session, cancellations_orm, bookings_orm):
+    with pytest.raises(IntegrityError) as e:
+        session.add_all(cancellations_orm)
+        session.flush()
+
+    assert "CONSTRAINT `test_cancellations_ibfk_2" in str(e.value.args[0])

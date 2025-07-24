@@ -1,6 +1,5 @@
 # tests/test_users.py
 import pytest
-import sqlalchemy as sa
 from icecream import ic
 from sqlalchemy.exc import IntegrityError
 
@@ -16,16 +15,17 @@ else:
 def test_insert_users_with_id_provided(session, users_orm):
     session.add_all(users_orm)
     session.flush()
-    result = session.scalars(sa.select(UserORM.id_)).all()
-    ic(result)
+    assert users_orm.pop(0).id == 1
+    assert users_orm.pop(0).id == 2
 
 
-def test_insert_users_without_id(session, users_models):
+def test_insert_users_autoincrement_id(session, users_models):
     users_orm = [UserORM.from_attributes(model) for model in users_models]
     session.add_all(users_orm)
     session.flush()
-    result = session.scalars(sa.select(UserORM.id_)).all()
-    ic(result)
+    user1 = users_orm.pop(0)
+    user2 = users_orm.pop(0)
+    assert user1.id == user2.id - 1
 
 
 def test_user_address_persistence(session, users_with_address_orm):
