@@ -7,13 +7,34 @@ from sqlalchemy.orm import Session
 
 from database.engine import engine  # adjust import as needed
 from database.schema import AddressORM, BookingORM, CancellationORM, EventORM, UserORM
-from models.schema import BookingModel, CancellationModel, EventModel, UserModel
+from models.schema import (
+    AddressModel,
+    BookingModel,
+    CancellationModel,
+    EventModel,
+    UserModel,
+)
+
+
+@pytest.fixture(scope="function")
+def session():
+    session = Session(engine, autoflush=False, expire_on_commit=True)
+    try:
+        yield session
+        print(
+            "Finished inserting users, events and bookings and cancellations...\n"
+            "Closing session without commiting transactions..."
+        )
+    finally:
+        session.rollback()
+        session.close()
 
 
 @pytest.fixture(scope="function")
 def users():
     return [
         {
+            "id": 1,
             "first_name": "Maria",
             "last_name": "Papadopoulou",
             "password": "mN7bV8cX9zQ1",
@@ -28,10 +49,11 @@ def users():
                 "city": "Thessaloniki",
                 "postal_code": "54622",
                 "country": "Greece",
-                "user_id": 2,
+                "user_id": 1,
             },
         },
         {
+            "id": 2,
             "first_name": "Giorgos",
             "last_name": "Nikolaidis",
             "password": "q1W2e3R4t5Y6",
@@ -46,10 +68,55 @@ def users():
                 "city": "Athens",
                 "postal_code": "10558",
                 "country": "Greece",
-                "user_id": 1,
+                "user_id": 2,
             },
         },
     ]
+
+
+@pytest.fixture(scope="function")
+def users_models(users):
+    return [UserModel.model_validate(d) for d in users]
+
+
+@pytest.fixture(scope="function")
+def addresses_models(users):
+    return [AddressModel.model_validate(d["address"]) for d in users]
+
+
+# In reality ids will be provided from the database during insertion.
+# If so, Pydantic models exclude them during serialization but for testing purposes are provided hardcoded
+
+
+@pytest.fixture(scope="function")
+def users_orm(users_models):
+    orms = []
+    for model in users_models:
+        orm = UserORM.from_attributes(model)
+        orm.id_ = model.id_
+        orms.append(orm)
+    return orms
+
+
+@pytest.fixture(scope="function")
+def addresses_orm(addresses_models):
+    orms = []
+    for model in addresses_models:
+        orm = AddressORM.from_attributes(model)
+        orm.id_ = model.id_
+        orms.append(orm)
+    return orms
+
+
+@pytest.fixture(scope="function")
+def users_with_address_orm(users_models):
+    orms = []
+    for model in users_models:
+        orm = UserORM.from_attributes(model)
+        orm.address = AddressORM.from_attributes(model.address)
+        orm.id_ = model.id_
+        orms.append(orm)
+    return orms
 
 
 @pytest.fixture(scope="function")

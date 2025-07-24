@@ -188,7 +188,7 @@ FOR EACH ROW
 BEGIN
     DECLARE available_seats INT;
     DECLARE current_reserved INT;
-    
+
     SELECT (total_seats  - reserved_seats)
     INTO available_seats
     FROM {DBConfig.tables.events}
