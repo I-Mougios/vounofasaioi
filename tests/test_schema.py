@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 import sqlalchemy as sa
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
 from database.engine import engine
@@ -390,3 +390,24 @@ def test_on_delete_set_null_relationships(populated_db):
     )
     assert len(bookings_result) != 0
     assert len(cancellations_result) != 0
+
+
+def test_check_seats_before_insert(populated_db):
+    session = populated_db
+
+    event = session.query(EventORM).first()
+    booking = session.query(BookingORM).first()
+    new_booking = {}
+    for col in booking.columns():
+        new_booking[col.name] = getattr(booking, col.name, None)
+
+    for col in ["id", "created_at", "updated_at"]:
+        del new_booking[col]
+    available_seats = event.total_seats - event.reserved_seats
+    new_booking["seats"] = available_seats + 1
+    with pytest.raises(OperationalError) as operational_error:
+        booking_orm = BookingORM(**new_booking)
+        session.add(booking_orm)
+        session.flush()
+
+    assert "Not enough available seats for this event." in operational_error.value.args[0]
