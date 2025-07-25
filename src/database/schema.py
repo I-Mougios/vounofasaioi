@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import argparse
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Optional
 
@@ -27,6 +27,7 @@ from src.enumerations import BookingStatus, EventStatus, Gender, PaymentMethod
 
 users_name = DBConfig.tables.users
 bookings_name = DBConfig.tables.bookings
+payments_name = DBConfig.tables.payments
 cancellations_name = DBConfig.tables.cancellations
 events_name = DBConfig.tables.events
 addresses_name = DBConfig.tables.addresses
@@ -80,15 +81,6 @@ class BookingORM(TimestampBase):
     )
     seats: Mapped[int] = mapped_column(Integer, nullable=False)
 
-    # Payment fields
-    amount_paid: Mapped[Decimal] = mapped_column(
-        Numeric(7, 2, asdecimal=True), nullable=False, default=Decimal("0.00")
-    )
-    payment_method: Mapped[PaymentMethod] = mapped_column(Enum(PaymentMethod), nullable=False)
-    payment_time: Mapped[datetime] = mapped_column(
-        TIMESTAMP, nullable=False, server_default=current_timestamp
-    )
-
     # Booking status
     status: Mapped[BookingStatus] = mapped_column(
         Enum(BookingStatus),
@@ -110,6 +102,30 @@ class BookingORM(TimestampBase):
         cascade="all, delete",
         passive_deletes=True,
     )
+    payment: Mapped[Optional["PaymentORM"]] = relationship(
+        back_populates="booking", uselist=False, cascade="all, delete", passive_deletes=True
+    )
+
+
+class PaymentORM(TimestampBase):
+    __tablename__ = payments_name
+
+    id_: Mapped[int] = mapped_column("id", Integer, autoincrement=True, primary_key=True)
+    transaction_id: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    booking_id: Mapped[int] = mapped_column(
+        ForeignKey(f"{bookings_name}.id", ondelete="CASCADE"), unique=True, nullable=False
+    )
+    amount_paid: Mapped[Decimal] = mapped_column(
+        Numeric(7, 2, asdecimal=True), nullable=False, default=Decimal("0.00")
+    )
+    payment_method: Mapped[PaymentMethod] = mapped_column(
+        Enum(PaymentMethod), nullable=False, default=PaymentMethod.CARD
+    )
+    payment_time: Mapped[datetime] = mapped_column(
+        TIMESTAMP, nullable=False, default=lambda: datetime.now(tz=UTC)
+    )
+
+    booking: Mapped["BookingORM"] = relationship(back_populates="payment")
 
 
 class CancellationORM(TimestampBase):

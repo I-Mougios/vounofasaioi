@@ -8,8 +8,10 @@ class Gender(Enum):
 
 
 class BookingStatus(Enum):
-    ACTIVE = "active"
-    CANCELLED = "cancelled"
+    PENDING = "pending"  # Booking created but not paid yet
+    ACTIVE = "active"  # Paid and confirmed
+    CANCELLED = "cancelled"  # User cancelled, but maybe not refunded
+    REFUNDED = "refunded"  # Cancelled and money returned
 
 
 class EventStatus(Enum):

@@ -33,7 +33,7 @@ def test_bookings_with_id_provided(session, events_orm, users_orm, bookings_orm)
     session.flush()
     session.add_all(bookings_orm)
     session.flush()
-    for i in range(1, len(events_orm) + 1):
+    for i in range(1, len(bookings_orm) + 1):
         assert bookings_orm.pop(0).id == i
 
 
@@ -45,4 +45,28 @@ def test_bookings_autoincrement_id(session, events_orm, users_orm, bookings_mode
     session.add_all(bookings_orm)
     session.flush()
     for pair in itertools.pairwise(bookings_orm):
+        assert pair[0].id == pair[1].id - 1
+
+
+def test_payments_with_id_provided(session, events_orm, users_orm, bookings_orm, payments_orm):
+    session.add_all(events_orm)
+    session.add_all(users_orm)
+    session.flush()
+    session.add_all(bookings_orm)
+    session.flush()
+    session.add_all(payments_orm)
+    session.flush()
+    for i in range(1, len(payments_orm) + 1):
+        assert payments_orm.pop(0).id == i
+
+
+def test_payments_autoincrement_id(session, events_orm, users_orm, bookings_orm, payments_orm):
+    session.add_all(events_orm)
+    session.add_all(users_orm)
+    session.flush()
+    session.add_all(bookings_orm)
+    session.flush()
+    session.add_all(payments_orm)
+    session.flush()
+    for pair in itertools.pairwise(payments_orm):
         assert pair[0].id == pair[1].id - 1

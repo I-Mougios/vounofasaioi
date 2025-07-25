@@ -71,9 +71,6 @@ class BookingModel(BaseModel):
     unit_price: Decimal = Field(..., max_digits=7, decimal_places=2)
     booking_time: Optional[AthensDateTime] = None
     seats: int
-    amount_paid: Decimal = Field(..., max_digits=7, decimal_places=2)
-    payment_method: PaymentMethod
-    payment_time: Optional[AthensDateTime] = None
     status: BookingStatus = BookingStatus.ACTIVE
     refund_amount: Decimal = Field(default=Decimal("0.00"), max_digits=7, decimal_places=2)
     created_at: Optional[AthensDateTime] = None
@@ -81,6 +78,21 @@ class BookingModel(BaseModel):
 
     # Relationships
     cancellation: Optional[CancellationModel] = None
+    payment: Optional[PaymentModel] = None
+
+    model_config = default_configs
+
+
+class PaymentModel(BaseModel):
+    id_: Optional[int] = Field(None, exclude=True)
+    transaction_id: str = Field(..., max_length=255)
+    booking_id: int
+    amount_paid: Decimal = Field(..., max_digits=7, decimal_places=2)
+    payment_method: PaymentMethod = PaymentMethod.CARD
+    payment_time: Optional[AthensDateTime] = None  # Will be filled by DB if not supplied
+
+    created_at: Optional[AthensDateTime] = None
+    updated_at: Optional[AthensDateTime] = None
 
     model_config = default_configs
 

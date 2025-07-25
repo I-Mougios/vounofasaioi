@@ -3,12 +3,20 @@ import pytest
 from sqlalchemy.orm import Session
 
 from database.engine import engine  # adjust import as needed
-from database.schema import AddressORM, BookingORM, CancellationORM, EventORM, UserORM
+from database.schema import (
+    AddressORM,
+    BookingORM,
+    CancellationORM,
+    EventORM,
+    PaymentORM,
+    UserORM,
+)
 from models.schema import (
     AddressModel,
     BookingModel,
     CancellationModel,
     EventModel,
+    PaymentModel,
     UserModel,
 )
 
@@ -185,8 +193,6 @@ def bookings():
             "event_id": 1,
             "unit_price": "120.00",
             "seats": 2,
-            "amount_paid": "240.00",
-            "payment_method": "card",
             "status": "active",
         },
         {
@@ -195,8 +201,6 @@ def bookings():
             "event_id": 1,
             "unit_price": "120.00",
             "seats": 1,
-            "amount_paid": "120.00",
-            "payment_method": "cash",
             "status": "active",
         },
         {
@@ -205,8 +209,6 @@ def bookings():
             "event_id": 2,
             "unit_price": "120.00",
             "seats": 3,
-            "amount_paid": "360.00",
-            "payment_method": "transfer",
             "status": "active",
         },
         {
@@ -215,8 +217,6 @@ def bookings():
             "event_id": 2,
             "unit_price": "150.00",
             "seats": 2,
-            "amount_paid": "300.00",
-            "payment_method": "card",
             "status": "active",
         },
     ]
@@ -232,6 +232,56 @@ def bookings_orm(bookings_models):
     orms = []
     for model in bookings_models:
         orm = BookingORM.from_attributes(model)
+        orm.id_ = model.id_
+        orms.append(orm)
+    return orms
+
+
+# ======= PAYMENTS ====================
+@pytest.fixture(scope="function")
+def payments():
+    return [
+        {
+            "id": 1,
+            "transaction_id": "txn_abc123",
+            "booking_id": 1,
+            "amount_paid": "240.00",  # seats 2 * 120.00 from booking #1
+            "payment_method": "card",
+        },
+        {
+            "id": 2,
+            "transaction_id": "txn_def456",
+            "booking_id": 2,
+            "amount_paid": "120.00",
+            "payment_method": "card",
+        },
+        {
+            "id": 3,
+            "transaction_id": "txn_ghi789",
+            "booking_id": 3,
+            "amount_paid": "360.00",  # 3 seats * 120
+            "payment_method": "card",
+        },
+        {
+            "id": 4,
+            "transaction_id": "txn_jkl012",
+            "booking_id": 4,
+            "amount_paid": "300.00",  # 2 seats * 150
+            "payment_method": "card",
+        },
+    ]
+
+
+@pytest.fixture(scope="function")
+def payments_models(payments):
+    return [PaymentModel.model_validate(d) for d in payments]
+
+
+@pytest.fixture(scope="function")
+def payments_orm(payments_models):
+    orms = []
+    for model in payments_models:
+        orm = PaymentORM.from_attributes(model)
         orm.id_ = model.id_
         orms.append(orm)
     return orms
@@ -272,4 +322,5 @@ def populated_db(session, users_orm, events_orm, bookings_orm, cancellations_orm
     session.add_all(users_orm)
     session.add_all(events_orm)
     session.add_all(bookings_orm)
+    session.add_all(payments_orm)
     session.add_all(cancellations_orm)
