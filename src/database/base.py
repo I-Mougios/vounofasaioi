@@ -20,8 +20,12 @@ class Base(DeclarativeBase):
         return cls.sa_table().c
 
     @classmethod
-    def from_attributes(cls, obj: Any) -> "Base":
-        # Convert to dictionary (supports Pydantic or plain classes)
+    def from_attributes(
+        cls,
+        obj: Any,
+        include: list[str | tuple[str, "Base"] | tuple[str, "Base", dict[str, Any]]] | None = None,
+    ) -> "Base":
+
         data = obj.model_dump() if hasattr(obj, "model_dump") else vars(obj)
 
         # Get the ORM's mapped column keys
@@ -29,6 +33,21 @@ class Base(DeclarativeBase):
 
         # Filter the attributes
         filtered_data = {k: v for k, v in data.items() if k in valid_keys}
+
+        if include:
+            for attr in include:
+                if isinstance(attr, str):
+                    value = getattr(obj, attr, None)
+                    filtered_data[attr] = value
+                else:
+                    value = getattr(obj, attr[0], None)
+                    orm_class = attr[1]
+                    try:
+                        kwargs = attr[2]
+                    except IndexError:
+                        kwargs = None
+                    orm_instance = orm_class.from_attributes(value, **kwargs)
+                    filtered_data[attr[0]] = orm_instance
 
         return cls(**filtered_data)
 
