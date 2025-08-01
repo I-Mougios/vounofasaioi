@@ -98,8 +98,7 @@ def addresses_models(users):
 def users_orm(users_models):
     orms = []
     for model in users_models:
-        orm = UserORM.from_attributes(model)
-        orm.id_ = model.id_
+        orm = UserORM.from_attributes(model, include=["id_", "password"])
         orms.append(orm)
     return orms
 
@@ -118,9 +117,9 @@ def addresses_orm(addresses_models):
 def users_with_address_orm(users_models):
     orms = []
     for model in users_models:
-        orm = UserORM.from_attributes(model)
-        orm.address = AddressORM.from_attributes(model.address)
-        orm.id_ = model.id_
+        orm = UserORM.from_attributes(
+            model, include=["id_", "password", ("address", AddressORM, {"include": ["id_"]})]
+        )
         orms.append(orm)
     return orms
 
@@ -175,8 +174,7 @@ def events_models(events):
 def events_orm(events_models):
     orms = []
     for model in events_models:
-        orm = EventORM.from_attributes(model)
-        orm.id_ = model.id_
+        orm = EventORM.from_attributes(model, include=["id_"])
         orms.append(orm)
     return orms
 
@@ -231,8 +229,7 @@ def bookings_models(bookings):
 def bookings_orm(bookings_models):
     orms = []
     for model in bookings_models:
-        orm = BookingORM.from_attributes(model)
-        orm.id_ = model.id_
+        orm = BookingORM.from_attributes(model, include=["id_"])
         orms.append(orm)
     return orms
 
@@ -281,8 +278,7 @@ def payments_models(payments):
 def payments_orm(payments_models):
     orms = []
     for model in payments_models:
-        orm = PaymentORM.from_attributes(model)
-        orm.id_ = model.id_
+        orm = PaymentORM.from_attributes(model, include=["id_"])
         orms.append(orm)
     return orms
 
@@ -310,8 +306,7 @@ def cancellations_models(cancellations):
 def cancellations_orm(cancellations_models):
     orms = []
     for model in cancellations_models:
-        orm = CancellationORM.from_attributes(model)
-        orm.id_ = model.id_
+        orm = CancellationORM.from_attributes(model, include=["id_"])
         orms.append(orm)
     return orms
 

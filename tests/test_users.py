@@ -20,7 +20,7 @@ def test_insert_users_with_id_provided(session, users_orm):
 
 
 def test_insert_users_autoincrement_id(session, users_models):
-    users_orm = [UserORM.from_attributes(model) for model in users_models]
+    users_orm = [UserORM.from_attributes(model, include=["password"]) for model in users_models]
     session.add_all(users_orm)
     session.flush()
     user1 = users_orm.pop(0)
