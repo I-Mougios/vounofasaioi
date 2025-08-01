@@ -26,7 +26,7 @@ class UserModel(BaseModel):
 
     first_name: str = Field(..., max_length=50)
     last_name: str = Field(..., max_length=50)
-    password: str = Field(..., max_length=128)
+    password: str = Field(..., max_length=128, exclude=True)
     date_of_birth: CustomDate
     gender: Optional[Gender] = None
     email: EmailStr = Field(...)
@@ -39,9 +39,6 @@ class UserModel(BaseModel):
     address: Optional[AddressModel] = None
 
     model_config = default_configs
-
-    def model_dump_json(self, **kwargs) -> str:
-        return super().model_dump_json(exclude=(["password"]))
 
 
 class EventModel(BaseModel):

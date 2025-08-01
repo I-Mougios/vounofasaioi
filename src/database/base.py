@@ -45,7 +45,7 @@ class Base(DeclarativeBase):
                     try:
                         kwargs = attr[2]
                     except IndexError:
-                        kwargs = None
+                        kwargs = {}
                     orm_instance = orm_class.from_attributes(value, **kwargs)
                     filtered_data[attr[0]] = orm_instance
 

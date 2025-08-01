@@ -15,7 +15,7 @@ def users(session=Depends(open_session)):
 
 @router.post("/", response_model=UserModel)
 def insert_user(user: UserModel, session=Depends(open_session)):
-    orm_user = UserORM.from_attributes(user)
+    orm_user = UserORM.from_attributes(user, include=["password"])
     session.add(orm_user)
     session.commit()
     return user
