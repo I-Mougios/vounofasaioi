@@ -17,6 +17,7 @@ default_configs = ConfigDict(
     populate_by_name=True,
     str_strip_whitespace=True,
     validate_assignment=True,
+    serialize_by_alias=True,
 )
 
 
@@ -38,6 +39,9 @@ class UserModel(BaseModel):
     address: Optional[AddressModel] = None
 
     model_config = default_configs
+
+    def model_dump_json(self, **kwargs) -> str:
+        return super().model_dump_json(exclude=(["password"]))
 
 
 class EventModel(BaseModel):
