@@ -9,7 +9,7 @@ dependencies= [
     "pymysql",
     "cryptography",
     "dotenv",
-    "fastapi",
+    "fastapi[all]",
     "uvicorn",
     "dateutils",
     "icecream"
