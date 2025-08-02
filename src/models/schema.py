@@ -41,6 +41,17 @@ class UserModel(BaseModel):
     model_config = default_configs
 
 
+class UserUpdateModel(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    date_of_birth: Optional[CustomDate] = None
+    gender: Optional[Gender] = None
+
+    model_config = default_configs
+
+
 class EventModel(BaseModel):
     id_: Optional[int] = Field(None, exclude=True)
     name: str = Field(..., max_length=100)
