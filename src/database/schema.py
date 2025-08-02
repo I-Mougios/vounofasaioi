@@ -22,7 +22,8 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.base import Base, TimestampBase
-from database.engine import DBConfig, engine
+from database.engine import engine
+from src.configs import DBConfig
 from src.enumerations import BookingStatus, EventStatus, Gender, PaymentMethod
 
 users_name = DBConfig.tables.users
@@ -125,7 +126,7 @@ class PaymentORM(TimestampBase):
         TIMESTAMP, nullable=False, default=lambda: datetime.now(tz=UTC)
     )
 
-    booking: Mapped["BookingORM"] = relationship(back_populates="payment")
+    booking: Mapped["BookingORM"] = relationship(back_populates="payment", lazy="select")
 
 
 class CancellationORM(TimestampBase):
@@ -150,9 +151,7 @@ class CancellationORM(TimestampBase):
     user: Mapped["UserORM"] = relationship(
         back_populates="user_cancellations", lazy="select", passive_deletes=True
     )
-    booking: Mapped["BookingORM"] = relationship(
-        back_populates="cancellation", lazy="select", cascade="all, delete", passive_deletes=True
-    )
+    booking: Mapped["BookingORM"] = relationship(back_populates="cancellation", lazy="select")
 
 
 class EventORM(TimestampBase):

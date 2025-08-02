@@ -312,10 +312,11 @@ def cancellations_orm(cancellations_models):
 
 
 @pytest.fixture(scope="function")
-def populated_db(session, users_orm, events_orm, bookings_orm, cancellations_orm):
-    print("Starting inserting users, events and bookings and cancellations...")
+def populated_db(session, users_orm, events_orm, bookings_orm, payments_orm, cancellations_orm):
     session.add_all(users_orm)
     session.add_all(events_orm)
     session.add_all(bookings_orm)
     session.add_all(payments_orm)
     session.add_all(cancellations_orm)
+    session.flush()
+    print(" users, events, bookings, payments and cancellations inserted successfully...")
