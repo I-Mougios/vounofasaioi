@@ -118,6 +118,6 @@ class AddressModel(BaseModel):
     city: str = Field(..., max_length=50)
     postal_code: str = Field(..., max_length=20)
     country: str = Field(..., max_length=50)
-    user_id: int
+    user_id: Optional[int] = Field(default=None, exclude=True)
 
     model_config = default_configs
