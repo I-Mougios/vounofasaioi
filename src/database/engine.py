@@ -4,24 +4,11 @@ from pathlib import Path
 import sqlalchemy as sa
 from icecream import ic
 
-from pyutils import ConfigMeta
+from configs import DBConfig
 
 __all__ = ["engine"]
 
 base_dir = Path(__file__).resolve().parents[0]
-
-
-class DBConfig(
-    metaclass=ConfigMeta, config_filename="database.test.ini", config_directory="configurations"
-):
-    """Database configurations"""
-
-
-if DBConfig.globals.get("icecream_enabled", default=False, cast=bool):
-    ic.enable()
-else:
-    ic.disable()
-
 
 username = DBConfig.user.get("username")
 password = DBConfig.user.get("password")
