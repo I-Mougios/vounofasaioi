@@ -86,8 +86,8 @@ class BookingORM(TimestampBase):
     status: Mapped[BookingStatus] = mapped_column(
         Enum(BookingStatus),
         nullable=False,
-        default=BookingStatus.ACTIVE,
-        server_default=text(f"'{BookingStatus.ACTIVE.value}'"),
+        default=BookingStatus.PENDING,
+        server_default=text(f"'{BookingStatus.PENDING.value}'"),
     )
     refund_amount: Mapped[Decimal] = mapped_column(
         Numeric(7, 2, asdecimal=True), nullable=False, default=Decimal("0.00")
@@ -216,7 +216,29 @@ END ;
 """
 )
 
+
+increment_reserved_seats_after_insert = DDL(
+    f"""
+    CREATE TRIGGER bookings_increment_reserved_seats_after_insert
+    AFTER INSERT ON {DBConfig.tables.bookings}
+    FOR EACH ROW
+    BEGIN
+        DECLARE current_reserved_seats INT;
+
+        SELECT reserved_seats
+        INTO current_reserved_seats
+        FROM {DBConfig.tables.events}
+        WHERE id = NEW.event_id;
+
+        UPDATE {DBConfig.tables.events}
+        SET reserved_seats = current_reserved_seats + NEW.seats
+        WHERE id = NEW.event_id;
+    END;
+    """
+)
+
 event.listen(BookingORM.sa_table(), "after_create", check_seats_before_insert)
+event.listen(BookingORM.sa_table(), "after_create", increment_reserved_seats_after_insert)
 
 
 class AddressORM(Base):
