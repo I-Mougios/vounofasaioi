@@ -3,9 +3,9 @@ from pydantic import EmailStr
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from backend.dependencies import open_session
 from database.schema import AddressORM, UserORM
 from models.schema import UserModel, UserUpdateModel
+from reservations.dependencies import open_session
 
 router = APIRouter(prefix="/users", tags=["users"])
 

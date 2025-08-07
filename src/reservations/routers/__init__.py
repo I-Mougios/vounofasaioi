@@ -1,4 +1,4 @@
-# src/backend/routers/__init__.py
+# src/reservations/routers/__init__.py
 
 from .users import router as users_router
 

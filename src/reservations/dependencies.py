@@ -1,4 +1,4 @@
-# src/backend/dependencies.py
+# src/reservations/dependencies.py
 from sqlalchemy.orm import Session, sessionmaker
 
 from database.engine import engine
