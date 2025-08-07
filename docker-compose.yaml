@@ -1,5 +1,5 @@
 services:
-  mysql:
+  vounofasaioi_db:
     image: mysql:8.0
     container_name: vounofasaioi_db
     restart: always
@@ -11,15 +11,15 @@ services:
     environment:
       MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
 
-  api:
+  reservation-service:
     build:
       context: .
-      dockerfile: src/backend/Dockerfile
+      dockerfile: src/reservations/Dockerfile
     ports:
       - "8000:8000"
     command: [
       "uvicorn",
-      "backend.main:app",
+      "reservations.main:app",
       "--host", "0.0.0.0",
       "--port", "8000",
       "--reload",
@@ -30,6 +30,6 @@ services:
       - ./src:/app/src
       - ./configurations:/app/configurations
     depends_on:
-      - mysql
+      - vounofasaioi_db
 volumes:
   vounofasaioi-data:
