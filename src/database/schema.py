@@ -64,6 +64,47 @@ class UserORM(TimestampBase):
     )
 
 
+class EventORM(TimestampBase):
+    __tablename__ = DBConfig.tables.events
+
+    id_: Mapped[int] = mapped_column("id", Integer, autoincrement=True, primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=True)
+    status: Mapped[EventStatus] = mapped_column(
+        Enum(EventStatus),
+        default=EventStatus.ACTIVE,
+        server_default=text(f"'{EventStatus.ACTIVE.value}'"),
+    )
+
+    # Locations
+    start_location: Mapped[str] = mapped_column(String(50), nullable=False)
+    destination: Mapped[str] = mapped_column(String(50), nullable=False)
+
+    # Travel times - to destination
+    departure_time_to: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+    arrival_time_to: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+
+    # Travel times - return
+    departure_time_return: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
+    arrival_time_return: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+
+    # Event date range
+    event_start_date: Mapped[date] = mapped_column(Date, nullable=False)
+    event_end_date: Mapped[date] = mapped_column(Date, nullable=False)
+
+    # Seats and pricing(Source of Truth)
+    reserved_seats: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    total_seats: Mapped[int] = mapped_column(Integer, nullable=False)
+    price_per_seat: Mapped[Decimal] = mapped_column(Numeric(7, 2, asdecimal=True), nullable=False)
+
+    # Relationships
+    bookings: Mapped[list["BookingORM"]] = relationship(
+        back_populates="event", lazy="select", cascade="all, delete", passive_deletes=True
+    )
+
+
 class BookingORM(TimestampBase):
     __tablename__ = bookings_name
 
@@ -154,47 +195,6 @@ class CancellationORM(TimestampBase):
     booking: Mapped["BookingORM"] = relationship(back_populates="cancellation", lazy="select")
 
 
-class EventORM(TimestampBase):
-    __tablename__ = DBConfig.tables.events
-
-    id_: Mapped[int] = mapped_column("id", Integer, autoincrement=True, primary_key=True)
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
-    description: Mapped[str] = mapped_column(Text, nullable=True)
-    status: Mapped[EventStatus] = mapped_column(
-        Enum(EventStatus),
-        default=EventStatus.ACTIVE,
-        server_default=text(f"'{EventStatus.ACTIVE.value}'"),
-    )
-
-    # Locations
-    start_location: Mapped[str] = mapped_column(String(50), nullable=False)
-    destination: Mapped[str] = mapped_column(String(50), nullable=False)
-
-    # Travel times - to destination
-    departure_time_to: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
-    arrival_time_to: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
-
-    # Travel times - return
-    departure_time_return: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), nullable=False
-    )
-    arrival_time_return: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
-
-    # Event date range
-    event_start_date: Mapped[date] = mapped_column(Date, nullable=False)
-    event_end_date: Mapped[date] = mapped_column(Date, nullable=False)
-
-    # Seats and pricing(Source of Truth)
-    reserved_seats: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    total_seats: Mapped[int] = mapped_column(Integer, nullable=False)
-    price_per_seat: Mapped[Decimal] = mapped_column(Numeric(7, 2, asdecimal=True), nullable=False)
-
-    # Relationships
-    bookings: Mapped[list["BookingORM"]] = relationship(
-        back_populates="event", lazy="select", cascade="all, delete", passive_deletes=True
-    )
-
-
 check_seats_before_insert = DDL(
     f"""
 CREATE TRIGGER bookings_check_seats_before_insert
@@ -237,8 +237,36 @@ increment_reserved_seats_after_insert = DDL(
     """
 )
 
+decrease_reserved_seats_after_insert = DDL(
+    f"""
+    CREATE TRIGGER cancellations_decrease_reserved_seats_after_insert
+    AFTER INSERT ON {DBConfig.tables.cancellations}
+    FOR EACH ROW
+    BEGIN
+        DECLARE v_reserved_seats INT;
+        DECLARE v_cancelled_seats INT;
+        DECLARE v_event_id INT;
+
+        SELECT b.seats, b.event_id
+        INTO v_cancelled_seats, v_event_id
+        FROM {DBConfig.tables.bookings} AS b
+        WHERE b.id = NEW.booking_id;
+
+        SELECT e.reserved_seats
+        INTO v_reserved_seats
+        FROM {DBConfig.tables.events} AS e
+        WHERE e.id = v_event_id;
+
+        UPDATE {DBConfig.tables.events}
+        SET reserved_seats = v_reserved_seats - v_cancelled_seats
+        WHERE id = v_event_id;
+    END ;
+"""
+)
+
 event.listen(BookingORM.sa_table(), "after_create", check_seats_before_insert)
 event.listen(BookingORM.sa_table(), "after_create", increment_reserved_seats_after_insert)
+event.listen(CancellationORM.sa_table(), "after_create", decrease_reserved_seats_after_insert)
 
 
 class AddressORM(Base):

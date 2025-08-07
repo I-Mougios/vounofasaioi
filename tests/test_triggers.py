@@ -13,7 +13,7 @@ else:
 
 
 def test_check_seats_before_insert(session, populated_db):
-    # Arrange
+    # Arrange (No cancellation for the event with id=1)
     available_seats = session.execute(
         sa.select((EventORM.total_seats - EventORM.reserved_seats).label("available_seats")).where(
             EventORM.id_ == 1
@@ -44,11 +44,25 @@ def test_increment_reserved_seats_after_insert(session, populated_db, events_orm
         .order_by(BookingORM.event_id)
     ).all()
 
+    cancellations_per_event_stmt = sa.text(
+        f"""
+    SELECT e.id AS event_id, COALESCE(SUM(b.seats), 0) AS cancelled_seats
+    FROM {DBConfig.tables.bookings} b
+    INNER JOIN {DBConfig.tables.cancellations} c ON b.id = c.booking_id
+    RIGHT JOIN {DBConfig.tables.events} e ON e.id = b.event_id
+    
+    GROUP BY e.id
+    ORDER BY e.id
+"""
+    )
+    cancellations_per_event = session.execute(cancellations_per_event_stmt).all()
+    ic(cancellations_per_event)
+
     reserved_seats_after = session.execute(
         sa.select(EventORM.id_, EventORM.reserved_seats).order_by(EventORM.id_)
     ).fetchall()
-    print(f"{reservations_per_event}")
-    for (_, seats_before), (_, reservations), (_, seats_after) in zip(
-        reserved_seats_before, reservations_per_event, reserved_seats_after
+
+    for (_, seats_before), (_, reservations), (_, seats_after), (_, cancellations) in zip(
+        reserved_seats_before, reservations_per_event, reserved_seats_after, cancellations_per_event
     ):
-        assert (seats_before + reservations) == seats_after
+        assert (seats_before + reservations - cancellations) == seats_after
