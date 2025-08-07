@@ -33,7 +33,7 @@ def test_check_seats_before_insert(session, populated_db):
         session.flush()
 
 
-def test_increment_reserved_seats_after_insert(session, populated_db, events_orm):
+def test_increment_and_decrement_reserved_seats_after_insert(session, populated_db, events_orm):
     # Arrange
     reserved_seats_before = sorted(
         [(event.id, event.reserved_seats) for event in events_orm], key=lambda x: x[0]

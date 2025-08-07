@@ -237,7 +237,7 @@ increment_reserved_seats_after_insert = DDL(
     """
 )
 
-decrease_reserved_seats_after_insert = DDL(
+decrement_reserved_seats_after_insert = DDL(
     f"""
     CREATE TRIGGER cancellations_decrease_reserved_seats_after_insert
     AFTER INSERT ON {DBConfig.tables.cancellations}
@@ -266,7 +266,7 @@ decrease_reserved_seats_after_insert = DDL(
 
 event.listen(BookingORM.sa_table(), "after_create", check_seats_before_insert)
 event.listen(BookingORM.sa_table(), "after_create", increment_reserved_seats_after_insert)
-event.listen(CancellationORM.sa_table(), "after_create", decrease_reserved_seats_after_insert)
+event.listen(CancellationORM.sa_table(), "after_create", decrement_reserved_seats_after_insert)
 
 
 class AddressORM(Base):
