@@ -4,10 +4,8 @@
 *.env
 
 # Files where I test implementations and configs
-configurations/
 screenshots/
 notebooks/
-src/database/scripts
 
 
 # IDE files
