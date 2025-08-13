@@ -1,5 +1,5 @@
 services:
-  vounofasaioi_db:
+  vounofasaioi-db:
     image: mysql:8.0
     container_name: vounofasaioi_db
     restart: always
@@ -15,6 +15,7 @@ services:
     build:
       context: .
       dockerfile: src/reservations/Dockerfile
+    container_name: reservation_service
     ports:
       - "8000:8000"
     command: [
@@ -30,6 +31,18 @@ services:
       - ./src:/app/src
       - ./configurations:/app/configurations
     depends_on:
-      - vounofasaioi_db
+      - vounofasaioi-db
+
+  python-dev:
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+    container_name: python_dev
+    volumes:
+      - ./src:/app/src
+      - ./configurations:/app/configurations
+    stdin_open: true
+    tty: true
+
 volumes:
   vounofasaioi-data:
