@@ -1,6 +1,8 @@
 FROM python:3.13-slim
 
-# Install system dependencies for building Python packages
+WORKDIR /app
+
+# Install system dependencies first
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libffi-dev \
@@ -8,15 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
-WORKDIR /app
-
 COPY pyproject.toml .
 
 RUN mkdir -p "src"
 
-# Install dependencies + your package in editable mode
 RUN pip install --upgrade pip && pip install -e .
-
-# Expose the port for Uvicorn
-EXPOSE 8000
