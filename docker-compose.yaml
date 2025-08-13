@@ -43,6 +43,8 @@ services:
       - ./configurations:/app/configurations
     stdin_open: true
     tty: true
+    depends_on:
+      - vounofasaioi-db
 
 volumes:
   vounofasaioi-data:
