@@ -11,12 +11,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set working directory
 WORKDIR /app
 
-COPY pyproject.toml .
+COPY pyproject.toml poetry.lock ./
 
 RUN mkdir -p "src"
 
-# Install dependencies + your package in editable mode
-RUN pip install --upgrade pip && pip install -e .
+# Install Poetry
+RUN pip install --upgrade pip \
+    && pip install poetry==2.1.4
+
+
+RUN poetry install --no-root
 
 # Expose the port for Uvicorn
 EXPOSE 8000

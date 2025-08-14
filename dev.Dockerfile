@@ -10,8 +10,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml .
+COPY pyproject.toml poetry.lock ./
 
 RUN mkdir -p "src"
 
-RUN pip install --upgrade pip && pip install -e .
+# Install Poetry
+RUN pip install --upgrade pip \
+    && pip install poetry==2.1.4
+
+RUN poetry install --no-root --with dev
