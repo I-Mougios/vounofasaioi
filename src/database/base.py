@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Type
+from typing import Any, Type, Callable, TypeVar
 
 from sqlalchemy import DDL, TIMESTAMP, event, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 current_timestamp = text("CURRENT_TIMESTAMP")
 
+T = TypeVar("T")
 
 class Base(DeclarativeBase):
     """Parent class for all database models."""
@@ -49,6 +50,13 @@ class Base(DeclarativeBase):
 
         orm_instance = orm_class.from_attributes(obj, include=include)
         setattr(self, relationship, orm_instance)
+        return self
+
+    def cast(self, attr: str, callable: Callable[[Any], T]) -> T :
+        value = getattr(self, attr, None)
+        if value is None:
+            raise AttributeError(f"Instances of class {type(self)} do not have attribute {attr}.")
+        setattr(self, attr,callable(value))
         return self
 
     def __getattr__(self, attr):

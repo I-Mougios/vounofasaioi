@@ -6,12 +6,13 @@ from sqlalchemy.orm import Session
 from database.schema import AddressORM, UserORM
 from models.schema import UserModel, UserUpdateModel
 from reservations.dependencies import open_session
+from reservations.security import hash_password
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.post(
-    "/",
+    "/create_user",
     response_model=UserModel,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new user",
@@ -51,9 +52,9 @@ Example:
         },
     },
 )
-def insert_user(user: UserModel, session=Depends(open_session)):
+def create_user(user: UserModel, session=Depends(open_session)):
     try:
-        user_orm = UserORM.from_attributes(user, include=["password"])
+        user_orm = UserORM.from_attributes(user, include=["password"]).cast(attr="password", callable=hash_password)
         session.add(user_orm)
         session.flush()  # get user_orm.id
 
@@ -76,7 +77,7 @@ def insert_user(user: UserModel, session=Depends(open_session)):
 
 
 @router.patch(
-    "/{email}",
+    "/update_user/{email}",
     response_model=UserModel,
     summary="Partially update a user by email, including changing email",
     description="""
@@ -102,7 +103,7 @@ Example:\n
       "last_name": "Papadopoulou",\n
       "date_of_birth": "1992-05-17",\n
       "gender": "F",\n
-      "email": "maria@example.com",\n
+      "email": "maria_new_email@example.com",\n
       "phone": "6901234567"\n
     }
     """,
@@ -113,7 +114,7 @@ Example:\n
         status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Database error"},
     },
 )
-def patch_user_by_email(
+def update_user_by_email(
     email: EmailStr,
     update_data: UserUpdateModel,
     session: Session = Depends(open_session),
