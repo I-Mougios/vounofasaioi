@@ -18,6 +18,6 @@ repos:
     hooks:
       - id: pytest
         name: run tests before commit
-        entry: pytest tests
+        entry: poetry run pytest tests
         language: system
         pass_filenames: false
