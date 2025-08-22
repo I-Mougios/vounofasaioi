@@ -6,6 +6,7 @@
 # Files where I test implementations and configs
 screenshots/
 notebooks/
+database/scripts/
 
 
 # IDE files
