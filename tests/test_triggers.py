@@ -56,7 +56,6 @@ def test_increment_and_decrement_reserved_seats_after_insert(session, populated_
 """
     )
     cancellations_per_event = session.execute(cancellations_per_event_stmt).all()
-    ic(cancellations_per_event)
 
     reserved_seats_after = session.execute(
         sa.select(EventORM.id_, EventORM.reserved_seats).order_by(EventORM.id_)
