@@ -4,7 +4,7 @@ from pathlib import Path
 import sqlalchemy as sa
 from icecream import ic
 
-from configs import DBConfig
+from configs import DBConfig, bool_
 
 __all__ = ["engine"]
 
@@ -14,7 +14,7 @@ username = DBConfig.user.get("username")
 password = DBConfig.user.get("password")
 host = DBConfig.service.get("host")
 port = DBConfig.service.get("port", default=3306)
-echo = DBConfig.service.get("echo", default=False, cast=bool)
+echo = DBConfig.service.get("echo", default=False, cast=bool_)
 database = DBConfig.service.get("database")
 
 tmp_mysql_uri = f"mysql+pymysql://{username}:{password}@{host}:{port}"
