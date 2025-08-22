@@ -47,6 +47,7 @@ services:
     volumes:
       - ./src:/app/src
       - ./configurations:/app/configurations
+      - ./tests:/app/tests
     environment:
       - PYTHONPATH=/app/src
     stdin_open: true
