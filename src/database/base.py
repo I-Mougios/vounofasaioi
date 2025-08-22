@@ -1,6 +1,8 @@
 # src/database.py
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Any
+from typing import Any, Type
 
 from sqlalchemy import DDL, TIMESTAMP, event, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -23,8 +25,8 @@ class Base(DeclarativeBase):
     def from_attributes(
         cls,
         obj: Any,
-        include: list[str | tuple[str, "Base"] | tuple[str, "Base", dict[str, Any]]] | None = None,
-    ) -> "Base":
+        include: list[str] | None = None,
+    ) -> Base:
 
         data = obj.model_dump() if hasattr(obj, "model_dump") else vars(obj)
 
@@ -36,20 +38,18 @@ class Base(DeclarativeBase):
 
         if include:
             for attr in include:
-                if isinstance(attr, str):
-                    value = getattr(obj, attr, None)
-                    filtered_data[attr] = value
-                else:
-                    value = getattr(obj, attr[0], None)
-                    orm_class = attr[1]
-                    try:
-                        kwargs = attr[2]
-                    except IndexError:
-                        kwargs = {}
-                    orm_instance = orm_class.from_attributes(value, **kwargs)
-                    filtered_data[attr[0]] = orm_instance
+                value = getattr(obj, attr, None)
+                filtered_data[attr] = value
 
         return cls(**filtered_data)
+
+    def add_relationship(
+        self, obj: Any, relationship: str, orm_class: Type[Base], include: list[str] | None = None
+    ) -> Base:
+
+        orm_instance = orm_class.from_attributes(obj, include=include)
+        setattr(self, relationship, orm_instance)
+        return self
 
     def __getattr__(self, attr):
         alt_name = attr + "_"

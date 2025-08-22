@@ -117,8 +117,8 @@ def addresses_orm(addresses_models):
 def users_with_address_orm(users_models):
     orms = []
     for model in users_models:
-        orm = UserORM.from_attributes(
-            model, include=["id_", "password", ("address", AddressORM, {"include": ["id_"]})]
+        orm = UserORM.from_attributes(model, include=["id_", "password"]).add_relationship(
+            model.address, "address", AddressORM, include=["id_"]
         )
         orms.append(orm)
     return orms
