@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Type, Callable, TypeVar
+from typing import Any, Callable, Type, TypeVar
 
 from sqlalchemy import DDL, TIMESTAMP, event, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -10,6 +10,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 current_timestamp = text("CURRENT_TIMESTAMP")
 
 T = TypeVar("T")
+
 
 class Base(DeclarativeBase):
     """Parent class for all database models."""
@@ -47,16 +48,18 @@ class Base(DeclarativeBase):
     def add_relationship(
         self, obj: Any, relationship: str, orm_class: Type[Base], include: list[str] | None = None
     ) -> Base:
+        if relationship not in vars(self.__class__):
+            raise AttributeError(f"Class {orm_class} does not have attribute {relationship}")
 
         orm_instance = orm_class.from_attributes(obj, include=include)
         setattr(self, relationship, orm_instance)
         return self
 
-    def cast(self, attr: str, callable: Callable[[Any], T]) -> T :
+    def cast(self, attr: str, callable: Callable[[Any], T]) -> Base:
         value = getattr(self, attr, None)
         if value is None:
             raise AttributeError(f"Instances of class {type(self)} do not have attribute {attr}.")
-        setattr(self, attr,callable(value))
+        setattr(self, attr, callable(value))
         return self
 
     def __getattr__(self, attr):
