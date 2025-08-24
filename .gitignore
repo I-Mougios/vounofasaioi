@@ -3,7 +3,7 @@
 *.csv
 *.env
 
-# Files where I test implementations and configs
+# Files where I test.py implementations and configs
 screenshots/
 notebooks/
 src/database/scripts/
@@ -52,7 +52,7 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Unit test / coverage reports
+# Unit test.py / coverage reports
 htmlcov/
 .tox/
 .nox/
