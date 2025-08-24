@@ -26,6 +26,7 @@ from database.engine import engine
 from src.configs import DBConfig
 from src.enumerations import BookingStatus, EventStatus, Gender, PaymentMethod
 
+admins_name = DBConfig.tables.admins
 users_name = DBConfig.tables.users
 bookings_name = DBConfig.tables.bookings
 payments_name = DBConfig.tables.payments
@@ -34,6 +35,16 @@ events_name = DBConfig.tables.events
 addresses_name = DBConfig.tables.addresses
 
 current_timestamp = text("CURRENT_TIMESTAMP")
+
+
+class AdminORM(Base):
+    __tablename__ = admins_name
+
+    id_: Mapped[int] = mapped_column("id", Integer, primary_key=True, autoincrement=True)
+    first_name: Mapped[str] = mapped_column("first_name", String(50), nullable=False)
+    last_name: Mapped[str] = mapped_column("last_name", String(50), nullable=False)
+    email: Mapped[str] = mapped_column("email", String(50), nullable=False, unique=True)
+    password: Mapped[str] = mapped_column("password", String(128), nullable=False)
 
 
 class UserORM(TimestampBase):

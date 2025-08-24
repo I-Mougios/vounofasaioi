@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from database.engine import engine
 from database.schema import (
     AddressORM,
+    AdminORM,
     BookingORM,
     CancellationORM,
     EventORM,
@@ -33,6 +34,24 @@ def session():
     finally:
         session.rollback()
         session.close()
+
+
+# ====== ADMINS ====
+@pytest.fixture(scope="function")
+def admins():
+    return [
+        {
+            "first_name": "ioannis",
+            "last_name": "mougios",
+            "email": "ioannis.mougios@email.com",
+            "password": "secret",
+        }
+    ]
+
+
+@pytest.fixture(scope="function")
+def admins_orm(admins):
+    return [AdminORM(**admin) for admin in admins]
 
 
 # ======== USERS & ADDRESSES========
@@ -312,7 +331,10 @@ def cancellations_orm(cancellations_models):
 
 
 @pytest.fixture(scope="function")
-def populated_db(session, users_orm, events_orm, bookings_orm, payments_orm, cancellations_orm):
+def populated_db(
+    session, admins_orm, users_orm, events_orm, bookings_orm, payments_orm, cancellations_orm
+):
+    session.add_all(admins_orm)
     session.add_all(users_orm)
     session.add_all(events_orm)
     session.add_all(bookings_orm)
