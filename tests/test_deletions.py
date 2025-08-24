@@ -1,14 +1,7 @@
 # tests/test_deletions.py
 import sqlalchemy as sa
-from icecream import ic
 
-from configs import DBConfig
 from database.schema import BookingORM, CancellationORM, EventORM, PaymentORM, UserORM
-
-if DBConfig.globals.get("icecream_enabled", False):
-    ic.enable()
-else:
-    ic.disable()
 
 
 def test_user_deletion_sets_user_id_null_in_bookings_and_cancellations(session, populated_db):

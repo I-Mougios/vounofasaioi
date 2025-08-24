@@ -1,13 +1,5 @@
 import pytest
-from icecream import ic
 from sqlalchemy.exc import IntegrityError
-
-from database.engine import DBConfig
-
-if DBConfig.globals.get("icecream_enabled", False):
-    ic.enable()
-else:
-    ic.disable()
 
 
 def test_bookings_without_users(session, events_orm, bookings_orm):

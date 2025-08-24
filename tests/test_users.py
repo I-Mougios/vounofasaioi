@@ -1,15 +1,8 @@
 # tests/test_users.py
 import pytest
-from icecream import ic
 from sqlalchemy.exc import IntegrityError
 
-from database.engine import DBConfig
 from database.schema import AddressORM, UserORM
-
-if DBConfig.globals.get("icecream_enabled", False):
-    ic.enable()
-else:
-    ic.disable()
 
 
 def test_insert_users_with_id_provided(session, users_orm):

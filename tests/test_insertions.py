@@ -1,14 +1,6 @@
 import itertools
 
-from icecream import ic
-
-from database.engine import DBConfig
 from database.schema import BookingORM, EventORM
-
-if DBConfig.globals.get("icecream_enabled", False):
-    ic.enable()
-else:
-    ic.disable()
 
 
 def test_events_with_id_provided(session, events_orm):

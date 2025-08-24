@@ -1,15 +1,9 @@
 # tests/test_deletions.py
 import pytest
 import sqlalchemy as sa
-from icecream import ic
 
 from configs import DBConfig
 from database.schema import BookingORM, EventORM
-
-if DBConfig.globals.get("icecream_enabled", False):
-    ic.enable()
-else:
-    ic.disable()
 
 
 def test_check_seats_before_insert(session, populated_db):
