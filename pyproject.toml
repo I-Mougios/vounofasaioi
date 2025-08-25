@@ -1,6 +1,8 @@
 [tool.poetry]
 name = "vounofasaioi"
 version = "0.1.0"
+description = "Vounofasaioi: a website project built with FastAPI and SQLAlchemy"
+authors = ["Ioannis Mougios <i.mougios.tech@gmail.com>"]
 packages = [
     { include = "*", from = "src" }
 ]
