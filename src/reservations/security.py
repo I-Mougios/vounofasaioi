@@ -13,7 +13,7 @@ SECRET_KEY = "your-very-long-random-secret-key"
 # Algorithm used for JWT
 ALGORITHM = "HS256"
 # Token expiration in minutes
-ACCESS_TOKEN_EXPIRE_MINUTES = 6
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 
 def hash_password(password: str) -> str:
@@ -35,7 +35,7 @@ def create_access_token(data: dict) -> str:
         token (str): JWT token
     """
     to_encode = data.copy()
-    expire = datetime.now(tz=UTC) + timedelta(seconds=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(tz=UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     token = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return token

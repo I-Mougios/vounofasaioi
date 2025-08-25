@@ -1,9 +1,11 @@
 from typing import Optional
+
 from pydantic import BaseModel, ConfigDict, EmailStr
 
-from .utils import to_snake_alias
-from .custom_types import CustomDate
 from src.enumerations import Gender
+
+from .custom_types import CustomDate
+from .utils import to_snake_alias
 
 default_configs = ConfigDict(
     from_attributes=True,

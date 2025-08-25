@@ -1,3 +1,4 @@
+# src/reservations/routers/users.py
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -9,20 +10,39 @@ from sqlalchemy.orm import Session
 from database.schema import AddressORM, UserORM
 from models.responses import TokenResponse
 from models.schema import UserModel
-from models.users import UserLogin
-from models.users import UserUpdateModel
-from reservations.dependencies import open_session, get_current_user
+from models.users import UserLogin, UserUpdateModel
+from reservations.dependencies import get_current_user, open_session
 from reservations.security import create_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/users", tags=["users"])
 
-@router.post("/login")
+
+@router.post(
+    "/login",
+    response_description="JWT access token, token type and the user record from the database",
+    summary="Login with email and password (Json-compatible)",
+    response_model=TokenResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"description": "Incorrect email or password"},
+        status.HTTP_200_OK: {"description": "User successfully logged in and get the JWT"},
+    },
+    description="""
+ Login with email and password (Json-compatible)
+ 
+ Example:
+ 
+    {
+      "email": "maria@example.com",\n
+      "password": "mN7bV8cX9zQ1"
+    }
+""",
+)
 def login(user: UserLogin, session: Session = Depends(open_session)):
     user_orm = session.query(UserORM).filter_by(email=user.email).first()
     if not user_orm or not verify_password(user.password, user_orm.password):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password"
         )
 
     token = create_access_token(data={"sub": user_orm.email})
@@ -157,7 +177,7 @@ def update_current_user(
     new_fields = update_data.model_dump(exclude_unset=True)
     new_email = new_fields.get("email", None)
     if new_email and new_email != current_user.email:
-        email_exists = get_user_by_email(email=new_email, session=session)
+        email_exists = session.query(UserORM).filter_by(email=new_email).first()
         if email_exists:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -171,7 +191,9 @@ def update_current_user(
         session.refresh(current_user)
 
         token = create_access_token({"sub": current_user.email})
-        return TokenResponse(access_token=token, token_type="bearer", user=UserModel.model_validate(current_user))
+        return TokenResponse(
+            access_token=token, token_type="bearer", user=UserModel.model_validate(current_user)
+        )
 
     except SQLAlchemyError as e:
         session.rollback()

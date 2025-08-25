@@ -23,11 +23,11 @@ def open_session() -> Generator[Session, None, None]:
 
 
 # ======= Authentication =====
-oath2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
 
 def get_current_user(
-    token: str = Depends(oath2_scheme), session: Session = Depends(open_session)
+    token: str = Depends(oauth2_scheme), session: Session = Depends(open_session)
 ) -> UserORM:
     """
     Dependency that extracts and validates the current user from a JWT access token.
