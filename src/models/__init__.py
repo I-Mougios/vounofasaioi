@@ -5,8 +5,7 @@ from .schema import (
     BookingModel,
     CancellationModel,
     EventModel,
-    UserModel,
-    UserUpdateModel,
+    UserModel
 )
 
 __all__ = [
@@ -15,5 +14,4 @@ __all__ = [
     "EventModel",
     "CancellationModel",
     "AddressModel",
-    "UserUpdateModel",
 ]

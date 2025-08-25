@@ -8,11 +8,27 @@ from sqlalchemy.orm import Session
 
 from database.schema import AddressORM, UserORM
 from models.responses import TokenResponse
-from models.schema import UserModel, UserUpdateModel
-from reservations.dependencies import open_session
-from reservations.security import create_access_token, hash_password
+from models.schema import UserModel
+from models.users import UserLogin
+from models.users import UserUpdateModel
+from reservations.dependencies import open_session, get_current_user
+from reservations.security import create_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+@router.post("/login")
+def login(user: UserLogin, session: Session = Depends(open_session)):
+    user_orm = session.query(UserORM).filter_by(email=user.email).first()
+    if not user_orm or not verify_password(user.password, user_orm.password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password"
+        )
+
+    token = create_access_token(data={"sub": user_orm.email})
+    return TokenResponse(
+        access_token=token, token_type="bearer", user=UserModel.model_validate(user_orm)
+    )
 
 
 @router.post(
@@ -95,8 +111,8 @@ def register(user: UserModel, session=Depends(open_session)) -> TokenResponse:
 
 
 @router.patch(
-    "/update_user/{email}",
-    response_model=UserModel,
+    "/update_current_user",
+    response_model=TokenResponse,
     summary="Partially update a user by email, including changing email",
     description="""
 Update one or more fields of a user.
@@ -132,16 +148,15 @@ Example:\n
         status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Database error"},
     },
 )
-def update_user_by_email(
-    email: EmailStr,
+def update_current_user(
     update_data: UserUpdateModel,
+    current_user: UserORM = Depends(get_current_user),
     session: Session = Depends(open_session),
 ):
-    old_user_orm = get_user_by_email(email=email, session=session)
     # Check for email change and uniqueness
     new_fields = update_data.model_dump(exclude_unset=True)
     new_email = new_fields.get("email", None)
-    if new_email and new_email != email:
+    if new_email and new_email != current_user.email:
         email_exists = get_user_by_email(email=new_email, session=session)
         if email_exists:
             raise HTTPException(
@@ -150,10 +165,13 @@ def update_user_by_email(
             )
     try:
         for field, value in new_fields.items():
-            setattr(old_user_orm, field, value)
-            session.flush()
+            setattr(current_user, field, value)
+
         session.commit()
-        return UserModel.model_validate(old_user_orm)
+        session.refresh(current_user)
+
+        token = create_access_token({"sub": current_user.email})
+        return TokenResponse(access_token=token, token_type="bearer", user=UserModel.model_validate(current_user))
 
     except SQLAlchemyError as e:
         session.rollback()
