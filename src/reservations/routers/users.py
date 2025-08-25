@@ -1,19 +1,23 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import PlainTextResponse
 from pydantic import EmailStr
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from database.schema import AddressORM, UserORM
+from models.responses import TokenResponse
 from models.schema import UserModel, UserUpdateModel
 from reservations.dependencies import open_session
-from reservations.security import hash_password
+from reservations.security import create_access_token, hash_password
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.post(
-    "/create_user",
-    response_model=UserModel,
+    "/register",
+    response_model=TokenResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new user",
     description="""
@@ -50,21 +54,33 @@ Example:
         status.HTTP_500_INTERNAL_SERVER_ERROR: {
             "description": "Database error during user insertion"
         },
+        status.HTTP_400_BAD_REQUEST: {"description": "User with email already exists"},
     },
 )
-def create_user(user: UserModel, session=Depends(open_session)):
+def register(user: UserModel, session=Depends(open_session)) -> TokenResponse:
+    # Check if email exists
+    existing_user = session.query(UserORM).filter_by(email=user.email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"User with email '{user.email}' already exists.",
+        )
     try:
-        user_orm = UserORM.from_attributes(user, include=["password"]).cast(attr="password", callable=hash_password)
+        user_orm = UserORM.from_attributes(user, include=["password"]).cast(
+            attr="password", callable=hash_password
+        )
         session.add(user_orm)
         session.flush()  # get user_orm.id
 
         if user.address:
             address_orm = AddressORM.from_attributes(user.address)
-            address_orm.user_id = user_orm.id_
+            address_orm.user_id = user_orm.id
             session.add(address_orm)
             session.flush()
 
         session.commit()
+        # Step 4: Generate JWT token
+        token = create_access_token({"sub": user_orm.email})
 
     except SQLAlchemyError as e:
         session.rollback()
@@ -73,7 +89,9 @@ def create_user(user: UserModel, session=Depends(open_session)):
             detail=f"Database error during user insertion: {str(e)}",
         )
 
-    return UserModel.model_validate(user_orm)
+    return TokenResponse(
+        access_token=token, token_type="bearer", user=UserModel.model_validate(user_orm)
+    )
 
 
 @router.patch(
@@ -119,17 +137,12 @@ def update_user_by_email(
     update_data: UserUpdateModel,
     session: Session = Depends(open_session),
 ):
-    old_user_orm = session.query(UserORM).filter_by(email=email).first()
-    if not old_user_orm:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User with email {email} not found",
-        )
+    old_user_orm = get_user_by_email(email=email, session=session)
     # Check for email change and uniqueness
     new_fields = update_data.model_dump(exclude_unset=True)
     new_email = new_fields.get("email", None)
     if new_email and new_email != email:
-        email_exists = session.query(UserORM).filter_by(email=new_email).first()
+        email_exists = get_user_by_email(email=new_email, session=session)
         if email_exists:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -161,26 +174,41 @@ def update_user_by_email(
 )
 def list_users(session: Session = Depends(open_session)) -> list[UserModel]:
     users_orm = session.query(UserORM).limit(100).all()
-    return users_orm
+    return [UserModel.model_validate(user) for user in users_orm]
 
 
 @router.delete(
     "/",
-    status_code=status.HTTP_204_NO_CONTENT,
+    status_code=status.HTTP_200_OK,
     summary="Delete all users",
     description="Permanently deletes all users from the database. Use with caution.",
     responses={
-        status.HTTP_204_NO_CONTENT: {"description": "All users deleted successfully"},
+        status.HTTP_200_OK: {
+            "description": "All users deleted successfully",
+            "content": {"text/plain": {"example": "2 users deleted successfully"}},
+        },
         status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Internal database error"},
     },
 )
-def delete_all_users(session: Session = Depends(open_session)) -> None:
+def delete_all_users(session: Session = Depends(open_session)) -> PlainTextResponse:
     try:
-        session.query(UserORM).delete()
+        delete_count = session.query(UserORM).delete()
         session.commit()
+        return PlainTextResponse(content=f"{delete_count} users deleted successfully")
     except SQLAlchemyError as e:
         session.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error deleting users: {str(e)}",
         )
+
+
+# ===================== Common Functionalities about users ===========
+def get_user_by_email(email: EmailStr, session: Session = Depends(open_session)) -> UserORM:
+    user: Optional[UserORM] = session.query(UserORM).filter_by(email=email).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with email {email} not found",
+        )
+    return user
