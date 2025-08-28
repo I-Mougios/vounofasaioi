@@ -1,0 +1,31 @@
+---
+version: 1
+disable_existing_loggers: false
+
+formatters:
+  sqlalchemy_formatter:
+    "()": pyutils.logging.SQLAlchemyFormatter
+
+filters:
+  sqlalchemy_filter:
+    "()": pyutils.logging.SQLAlchemyFilter
+
+handlers:
+  sqlalchemy_stream_handler:
+    class: logging.StreamHandler
+    formatter: sqlalchemy_formatter
+    filters: [sqlalchemy_filter]
+    stream: ext://sys.stdout
+
+  sqlalchemy_rotating_file_handler:
+    class: logging.handlers.RotatingFileHandler
+    filters: [sqlalchemy_filter]
+    formatter: sqlalchemy_formatter
+    filename: logs/sqlalchemy.logs
+    maxBytes: 50000
+    backupCount: 2
+
+loggers:
+  sqlalchemy:
+    level: INFO
+    handlers: [sqlalchemy_stream_handler, sqlalchemy_rotating_file_handler]
