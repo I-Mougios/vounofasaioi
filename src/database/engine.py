@@ -3,6 +3,9 @@ import sqlalchemy as sa
 from icecream import ic
 
 from configs import DBConfig, bool_
+from pyutils.logging import configure_loggers
+
+configure_loggers(directory="configurations", filename="logger_config.yaml")
 
 __all__ = ["engine"]
 

@@ -29,3 +29,10 @@ loggers:
   sqlalchemy:
     level: INFO
     handlers: [sqlalchemy_stream_handler, sqlalchemy_rotating_file_handler]
+    propagate: false
+
+  sqlalchemy.engine.Engine:
+    level: INFO
+    handlers: [sqlalchemy_stream_handler, sqlalchemy_rotating_file_handler]
+    propagate: false
+
