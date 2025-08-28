@@ -21,6 +21,17 @@ default_configs = ConfigDict(
 )
 
 
+class AdminModel(BaseModel):
+    id_: Optional[int] = Field(None, exclude=True)
+
+    first_name: str = Field(..., max_length=50)
+    last_name: str = Field(..., max_length=50)
+    email: EmailStr = Field(...)
+    password: str = Field(..., max_length=128, exclude=True)
+
+    model_config = default_configs
+
+
 class UserModel(BaseModel):
     id_: Optional[int] = Field(None, exclude=True)
 

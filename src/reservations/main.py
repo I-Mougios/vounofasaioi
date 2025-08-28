@@ -5,7 +5,7 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-from database.schema import UserORM
+from database.schema import AdminORM, UserORM
 from models.responses import TokenResponse
 
 from .dependencies import open_session
@@ -49,6 +49,11 @@ def login(
 
     # Swagger sends `username`, we treat it as `email`
     user: Optional[UserORM] = session.query(UserORM).filter_by(email=form_data.username).first()
+    if not user:
+        admin: Optional[AdminORM] = (
+            session.query(AdminORM).filter_by(email=form_data.username).first()
+        )
+        user = admin if admin else None
 
     if not user or not verify_password(form_data.password, user.password):
         raise HTTPException(
@@ -58,4 +63,4 @@ def login(
     # Create JWT
     access_token = create_access_token(data={"sub": user.email})
 
-    return TokenResponse(access_token=access_token, token_type="bearer", user=user)
+    return TokenResponse(access_token=access_token, token_type="bearer")

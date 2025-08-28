@@ -41,10 +41,10 @@ class AdminORM(Base):
     __tablename__ = admins_name
 
     id_: Mapped[int] = mapped_column("id", Integer, primary_key=True, autoincrement=True)
-    first_name: Mapped[str] = mapped_column("first_name", String(50), nullable=False)
-    last_name: Mapped[str] = mapped_column("last_name", String(50), nullable=False)
-    email: Mapped[str] = mapped_column("email", String(50), nullable=False, unique=True)
-    password: Mapped[str] = mapped_column("password", String(128), nullable=False)
+    first_name: Mapped[str] = mapped_column(String(50), nullable=False)
+    last_name: Mapped[str] = mapped_column(String(50), nullable=False)
+    email: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+    password: Mapped[str] = mapped_column(String(128), nullable=False)
 
 
 class UserORM(TimestampBase):
