@@ -27,6 +27,12 @@ def configure_loggers(
             with open(candidate, encoding="utf-8") as f:
                 config = safe_load(f)
 
+            # --- Ensure all handler directories exist ---
+            for handler in config.get("handlers", {}).values():
+                if "filename" in handler:
+                    log_path = Path(handler["filename"])
+                    log_path.parent.mkdir(parents=True, exist_ok=True)
+
             logging.config.dictConfig(config)
             return config
 
