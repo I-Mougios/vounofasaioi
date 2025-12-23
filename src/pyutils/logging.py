@@ -52,9 +52,10 @@ class SQLAlchemyFormatter(logging.Formatter):
         exc_str = str(exc_value)
         sql_match = re.search(r"\[SQL:\s*(.*?)\]", exc_str, re.DOTALL)
         params_match = re.search(r"\[parameters:\s*(.*?)\]", exc_str, re.DOTALL)
-        return {"query": sql_match.group(1) if sql_match else None,
-                "params": params_match.group(1) if params_match else None
-            }
+        return {
+            "query": sql_match.group(1) if sql_match else None,
+            "params": params_match.group(1) if params_match else None,
+        }
 
     def format(self, record: logging.LogRecord) -> str:  # noqa A003
         if record.exc_info:

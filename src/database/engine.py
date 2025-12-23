@@ -21,6 +21,6 @@ mysql_uri = ic(f"mysql+aiomysql://{username}:{password}@{host}:{port}/{database}
 engine = create_async_engine(mysql_uri, echo=echo)
 
 
-SessionLocal = sessionmaker(
-    bind=engine, autocommit=False, autoflush=False, expire_on_commit=False, class_=AsyncSession
+SessionLocal: sessionmaker[AsyncSession] = sessionmaker(  # type: ignore
+    bind=engine, autoflush=False, expire_on_commit=False, class_=AsyncSession
 )
