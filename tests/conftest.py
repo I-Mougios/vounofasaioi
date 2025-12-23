@@ -1,8 +1,10 @@
 # tests/conftest.py
 import pytest
+from icecream import ic
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from database.engine import engine
+from configs import DBConfig, bool_
 from database.schema import (
     AddressORM,
     AdminORM,
@@ -21,16 +23,22 @@ from models.schema import (
     UserModel,
 )
 
+username = DBConfig.user.get("username")
+password = DBConfig.user.get("password")
+host = DBConfig.service.get("host")
+port = DBConfig.service.get("port", default=3306)
+echo = DBConfig.service.get("echo", default=False, cast=bool_)
+database = DBConfig.service.get("database")
+
+mysql_uri = ic(f"mysql+pymysql://{username}:{password}@{host}:{port}/{database}")
+engine = create_engine(mysql_uri, echo=echo)
+
 
 @pytest.fixture(scope="function")
 def session():
     session = Session(engine, autoflush=False, expire_on_commit=True)
     try:
         yield session
-        print(
-            "Finished inserting users, events and bookings and cancellations...\n"
-            "Closing session without commiting transactions..."
-        )
     finally:
         session.rollback()
         session.close()
