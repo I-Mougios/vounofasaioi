@@ -5,6 +5,7 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 from reservations.main import app
+from database.engine import engine
 
 
 @pytest.fixture(scope="function")
@@ -29,11 +30,12 @@ def user_one():
 @pytest_asyncio.fixture
 async def client() -> AsyncGenerator[AsyncClient, None]:
     transport = ASGITransport(app=app)
-    client = AsyncClient(transport=transport, base_url="http://test")
+    client = AsyncClient(base_url="http://test", transport=transport)
     try:
         yield client
     finally:
         await client.aclose()
+        await engine.dispose()
 
 
 @pytest.mark.asyncio
