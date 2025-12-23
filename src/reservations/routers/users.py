@@ -182,7 +182,7 @@ async def update_current_user(
     new_fields = update_data.model_dump(exclude_unset=True)
     new_email = new_fields.get("email", None)
     if new_email and new_email != current_user.email:
-        result = session.execute(select(UserORM).filter_by(email=new_email))
+        result = await session.execute(select(UserORM).filter_by(email=new_email))
         email_exists = result.scalar_one_or_none()
         if email_exists:
             raise HTTPException(
