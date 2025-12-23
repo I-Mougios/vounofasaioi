@@ -1,33 +1,28 @@
 # src/reservations/dependencies.py
-from typing import Generator, Optional
+from typing import AsyncGenerator, Optional
 
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.engine import engine
+from database.engine import SessionLocal
 from database.schema import AdminORM, UserORM
 from reservations.security import decode_access_token
 
-# ======= Database ===========
-SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, expire_on_commit=True)
 
-
-def open_session() -> Generator[Session, None, None]:
-    session = SessionLocal()
-    try:
+async def open_async_session() -> AsyncGenerator[AsyncSession, None]:
+    async with SessionLocal() as session:
         yield session
-    finally:
-        session.close()
 
 
 # ======= Authentication =====
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
 
-def get_current_user(
-    token: str = Depends(oauth2_scheme), session: Session = Depends(open_session)
+async def get_current_user(
+    token: str = Depends(oauth2_scheme), session: AsyncSession = Depends(open_async_session)
 ) -> UserORM:
     """
     Dependency that extracts and validates the current user from a JWT access token.
@@ -59,7 +54,8 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Token error: {str(ex)}"
         )
 
-    user: Optional[UserORM] = session.query(UserORM).filter_by(email=email).first()
+    result = await session.execute(select(UserORM).filter_by(email=email))
+    user: Optional[UserORM] = result.scalars().first()
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail=f"No user found with email: {email}"
@@ -68,9 +64,9 @@ def get_current_user(
     return user
 
 
-def get_current_admin(
-    token: str = Depends(oauth2_scheme), session: Session = Depends(open_session)
-) -> UserORM:
+async def get_current_admin(
+    token: str = Depends(oauth2_scheme), session: AsyncSession = Depends(open_async_session)
+) -> AdminORM:
     """
     Dependency that extracts and validates the current admin from a JWT access token.
 
@@ -101,7 +97,8 @@ def get_current_admin(
             status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Token error: {str(ex)}"
         )
 
-    admin: Optional[AdminORM] = session.query(AdminORM).filter_by(email=email).first()
+    result = await session.execute(select(AdminORM).filter_by(email=email))
+    admin: Optional[AdminORM] = result.scalars().first()
     if admin is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail=f"No admin found with email: {email}"

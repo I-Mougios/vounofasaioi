@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Optional
@@ -19,10 +20,10 @@ from sqlalchemy import (
     event,
     text,
 )
+from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.base import Base, TimestampBase
-from database.engine import engine
 from src.configs import DBConfig
 from src.enumerations import BookingStatus, EventStatus, Gender, PaymentMethod
 
@@ -275,9 +276,11 @@ decrement_reserved_seats_after_insert = DDL(
 """
 )
 
-event.listen(BookingORM.sa_table(), "after_create", check_seats_before_insert)
-event.listen(BookingORM.sa_table(), "after_create", increment_reserved_seats_after_insert)
-event.listen(CancellationORM.sa_table(), "after_create", decrement_reserved_seats_after_insert)
+
+def register_triggers():
+    event.listen(BookingORM.sa_table(), "after_create", check_seats_before_insert)
+    event.listen(BookingORM.sa_table(), "after_create", increment_reserved_seats_after_insert)
+    event.listen(CancellationORM.sa_table(), "after_create", decrement_reserved_seats_after_insert)
 
 
 class AddressORM(Base):
@@ -295,13 +298,17 @@ class AddressORM(Base):
     user: Mapped["UserORM"] = relationship(back_populates="address", lazy="select")
 
 
-def reset_tables(tables_to_reset=None):
+async def reset_tables(eng: AsyncEngine, tables_to_reset: Optional[list[str]] = None) -> None:
     metadata = Base.metadata
+    register_triggers()
 
     if not tables_to_reset:
         # Reset all tables
         tables = list(metadata.tables.values())
     else:
+        invalid = set(tables_to_reset) - metadata.tables.keys()
+        if invalid:
+            raise ValueError(f"Invalid tables: {invalid}")
         # Filter tables by name, ignoring invalid ones
         tables = [metadata.tables[t] for t in tables_to_reset if t in metadata.tables]
         if not tables:
@@ -310,17 +317,22 @@ def reset_tables(tables_to_reset=None):
 
     print(f"Resetting tables: {', '.join(t.name for t in tables)}")
 
-    # Drop tables
-    metadata.drop_all(engine, tables=tables, checkfirst=True)
-    # Create tables
-    metadata.create_all(engine, tables=tables, checkfirst=True)
+    try:
+        async with engine.begin() as conn:
+            # Drop all tables
+            await conn.run_sync(metadata.drop_all, tables=tables, checkfirst=True)
+            # Create tables
+            await conn.run_sync(metadata.create_all, tables=tables, checkfirst=True)
+    finally:
+        await engine.dispose()
 
 
 if __name__ == "__main__":
+    from database.engine import engine
 
     parser = argparse.ArgumentParser(description="Reset tables by dropping and recreating.")
     parser.add_argument(
         "--tables", nargs="*", help="Names of tables to reset. If omitted, reset all tables."
     )
     args = parser.parse_args()
-    reset_tables(args.tables)
+    asyncio.run(reset_tables(engine, args.tables))

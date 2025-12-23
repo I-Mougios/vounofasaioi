@@ -4,14 +4,15 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import PlainTextResponse
 from pydantic import EmailStr
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.schema import AddressORM, UserORM
-from models.responses import TokenResponse
+from models.responses import TokenResponse, UserResponse
 from models.schema import UserModel
 from models.users import UserLogin, UserUpdateModel
-from reservations.dependencies import get_current_user, open_session
+from reservations.dependencies import get_current_user, open_async_session
 from reservations.security import create_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -38,8 +39,9 @@ router = APIRouter(prefix="/users", tags=["users"])
     }
 """,
 )
-def login(user: UserLogin, session: Session = Depends(open_session)):
-    user_orm = session.query(UserORM).filter_by(email=user.email).first()
+async def login(user: UserLogin, session: AsyncSession = Depends(open_async_session)):
+    result = await session.execute(select(UserORM).filter_by(email=user.email))
+    user_orm = result.scalar_one_or_none()
     if not user_orm or not verify_password(user.password, user_orm.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password"
@@ -47,7 +49,7 @@ def login(user: UserLogin, session: Session = Depends(open_session)):
 
     token = create_access_token(data={"sub": user_orm.email})
     return TokenResponse(
-        access_token=token, token_type="bearer", user=UserModel.model_validate(user_orm)
+        access_token=token, token_type="bearer", user=UserResponse.model_validate(user_orm)
     )
 
 
@@ -93,9 +95,12 @@ Example:
         status.HTTP_400_BAD_REQUEST: {"description": "User with email already exists"},
     },
 )
-def register(user: UserModel, session=Depends(open_session)) -> TokenResponse:
+async def register(
+    user: UserModel, session: AsyncSession = Depends(open_async_session)
+) -> TokenResponse:
     # Check if email exists
-    existing_user = session.query(UserORM).filter_by(email=user.email).first()
+    result = await session.execute(select(UserORM).filter_by(email=user.email))
+    existing_user: Optional[UserORM] = result.scalar_one_or_none()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -106,15 +111,16 @@ def register(user: UserModel, session=Depends(open_session)) -> TokenResponse:
             attr="password", callable=hash_password
         )
         session.add(user_orm)
-        session.flush()  # get user_orm.id
+        await session.flush()  # get user_orm.id
 
         if user.address:
             address_orm = AddressORM.from_attributes(user.address)
             address_orm.user_id = user_orm.id
             session.add(address_orm)
-            session.flush()
+            await session.flush()
 
-        session.commit()
+        await session.commit()
+        await session.refresh(user_orm)
         # Step 4: Generate JWT token
         token = create_access_token({"sub": user_orm.email})
 
@@ -124,9 +130,8 @@ def register(user: UserModel, session=Depends(open_session)) -> TokenResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database error during user insertion: {str(e)}",
         )
-
     return TokenResponse(
-        access_token=token, token_type="bearer", user=UserModel.model_validate(user_orm)
+        access_token=token, token_type="bearer", user=UserResponse.model_validate(user_orm)
     )
 
 
@@ -168,16 +173,17 @@ Example:\n
         status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Database error"},
     },
 )
-def update_current_user(
+async def update_current_user(
     update_data: UserUpdateModel,
     current_user: UserORM = Depends(get_current_user),
-    session: Session = Depends(open_session),
+    session: AsyncSession = Depends(open_async_session),
 ):
     # Check for email change and uniqueness
     new_fields = update_data.model_dump(exclude_unset=True)
     new_email = new_fields.get("email", None)
     if new_email and new_email != current_user.email:
-        email_exists = session.query(UserORM).filter_by(email=new_email).first()
+        result = session.execute(select(UserORM).filter_by(email=new_email))
+        email_exists = result.scalar_one_or_none()
         if email_exists:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -187,16 +193,16 @@ def update_current_user(
         for field, value in new_fields.items():
             setattr(current_user, field, value)
 
-        session.commit()
-        session.refresh(current_user)
+        await session.commit()
+        await session.refresh(current_user)
 
         token = create_access_token({"sub": current_user.email})
         return TokenResponse(
-            access_token=token, token_type="bearer", user=UserModel.model_validate(current_user)
+            access_token=token, token_type="bearer", user=UserResponse.model_validate(current_user)
         )
 
     except SQLAlchemyError as e:
-        session.rollback()
+        await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error updating user: {str(e)}",
@@ -212,12 +218,13 @@ def update_current_user(
         status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Database error"},
     },
 )
-def delete_me(
-    current_user: UserORM = Depends(get_current_user), session: Session = Depends(open_session)
+async def delete_me(
+    current_user: UserORM = Depends(get_current_user),
+    session: AsyncSession = Depends(open_async_session),
 ):
     try:
-        session.delete(current_user)
-        session.commit()
+        await session.delete(current_user)
+        await session.commit()
     except SQLAlchemyError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -239,9 +246,9 @@ def delete_me(
     summary="List users",
     description="Returns up to 100 users from the database. Intended for development/debugging.",
 )
-def list_users(session: Session = Depends(open_session)) -> list[UserModel]:
-    users_orm = session.query(UserORM).limit(100).all()
-    return [UserModel.model_validate(user) for user in users_orm]
+def list_users(session: AsyncSession = Depends(open_async_session)) -> list[UserModel]:
+    users_orm = session.execute(select(UserORM).limit(100).all())
+    return [UserResponse.model_validate(user) for user in users_orm]
 
 
 @router.delete(
@@ -257,10 +264,12 @@ def list_users(session: Session = Depends(open_session)) -> list[UserModel]:
         status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Internal database error"},
     },
 )
-def delete_all_users(session: Session = Depends(open_session)) -> PlainTextResponse:
+async def delete_all_users(
+    session: AsyncSession = Depends(open_async_session),
+) -> PlainTextResponse:
     try:
-        delete_count = session.query(UserORM).delete()
-        session.commit()
+        session.delete(UserORM)
+        delete_count = await session.commit()
         return PlainTextResponse(content=f"{delete_count} users deleted successfully")
     except SQLAlchemyError as e:
         session.rollback()
@@ -271,11 +280,14 @@ def delete_all_users(session: Session = Depends(open_session)) -> PlainTextRespo
 
 
 # ===================== Common Functionalities about users ===========
-def get_user_by_email(email: EmailStr, session: Session = Depends(open_session)) -> UserORM:
-    user: Optional[UserORM] = session.query(UserORM).filter_by(email=email).first()
+async def get_user_by_email(
+    email: EmailStr, session: AsyncSession = Depends(open_async_session)
+) -> UserORM:
+    result = await session.execute(select(UserORM).filter_by(email=email))
+    user: Optional[UserORM] = result.scalar_one_or_none()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User with email {email} not found",
+            detail=f"User with email {str(email)} not found",
         )
     return user

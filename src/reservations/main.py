@@ -3,12 +3,13 @@ from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.schema import AdminORM, UserORM
 from models.responses import TokenResponse
 
-from .dependencies import open_session
+from .dependencies import open_async_session
 from .routers import routers
 from .security import create_access_token, verify_password
 
@@ -29,8 +30,9 @@ def root():
     summary="Login with email and password (Swagger-compatible)",
     response_description="JWT access token, token type and the user record from the database",
 )
-def login(
-    form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(open_session)
+async def login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    session: AsyncSession = Depends(open_async_session),
 ):
     """
     Authenticate a user using **email and password**.
@@ -48,11 +50,15 @@ def login(
     """
 
     # Swagger sends `username`, we treat it as `email`
-    user: Optional[UserORM] = session.query(UserORM).filter_by(email=form_data.username).first()
+    result: Optional[UserORM] = await session.execute(
+        select(UserORM).filter_by(email=form_data.username)
+    )
+    user: Optional[UserORM] = result.scalar_one_or_none()
     if not user:
-        admin: Optional[AdminORM] = (
-            session.query(AdminORM).filter_by(email=form_data.username).first()
+        result: Optional[AdminORM] = await session.execute(
+            select(AdminORM).filter_by(email=form_data.username)
         )
+        admin = result.scalar_one_or_none()
         user = admin if admin else None
 
     if not user or not verify_password(form_data.password, user.password):
