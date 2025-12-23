@@ -203,6 +203,33 @@ def update_current_user(
         )
 
 
+@router.delete(
+    "/delete_me",
+    summary="Delete a user by email",
+    description="Only authenticated users can delete their own account",
+    responses={
+        status.HTTP_204_NO_CONTENT: {"description": "User deleted successfully"},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Database error"},
+    },
+)
+def delete_me(
+    current_user: UserORM = Depends(get_current_user), session: Session = Depends(open_session)
+):
+    try:
+        session.delete(current_user)
+        session.commit()
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unable to delete user: {str(e)}",
+        )
+
+    return PlainTextResponse(
+        f"User with email {current_user.email} deleted successfully",
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+
+
 # ============= Endpoints mainly for development assistance ============
 
 
