@@ -8,7 +8,7 @@ from pyutils.logging import configure_loggers
 
 configure_loggers(directory="configurations", filename="logger_config.yaml")
 
-__all__ = ["engine", "SessionLocal"]
+__all__ = ["engine", "SessionLocal", "async_mysql_uri"]
 
 username = DBConfig.user.get("username")
 password = DBConfig.user.get("password")
@@ -17,8 +17,8 @@ port = DBConfig.service.get("port", default=3306)
 echo = DBConfig.service.get("echo", default=False, cast=bool_)
 database = DBConfig.service.get("database")
 
-mysql_uri = ic(f"mysql+aiomysql://{username}:{password}@{host}:{port}/{database}")
-engine = create_async_engine(mysql_uri, echo=echo)
+async_mysql_uri = ic(f"mysql+aiomysql://{username}:{password}@{host}:{port}/{database}")
+engine = create_async_engine(async_mysql_uri, echo=echo, pool_pre_ping=True)
 
 
 SessionLocal: sessionmaker[AsyncSession] = sessionmaker(  # type: ignore
