@@ -1,4 +1,5 @@
 # src/models/responses.py
+from decimal import Decimal
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -9,6 +10,27 @@ from models.schema import AdminModel
 default_configs = ConfigDict(
     from_attributes=True, serialize_by_alias=True, str_strip_whitespace=True
 )
+
+
+class EventResponse(BaseModel):
+    id_: Optional[int] = Field(None, exclude=True)
+    name: str = Field(..., max_length=100)
+    description: Optional[str] = None
+    start_location: str = Field(..., max_length=50)
+    destination: str = Field(..., max_length=50)
+    departure_time_to: AthensDateTime
+    arrival_time_to: AthensDateTime
+    departure_time_return: AthensDateTime
+    arrival_time_return: AthensDateTime
+    event_start_date: CustomDate
+    event_end_date: CustomDate
+    reserved_seats: int = 0
+    total_seats: int
+    price_per_seat: Decimal
+    created_at: Optional[AthensDateTime] = None
+    updated_at: Optional[AthensDateTime] = None
+
+    model_config = default_configs
 
 
 class UserResponse(BaseModel):
