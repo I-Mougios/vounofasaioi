@@ -1,6 +1,4 @@
 # src/reservations/main.py
-from typing import Optional
-
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
@@ -50,14 +48,10 @@ async def login(
     """
 
     # Swagger sends `username`, we treat it as `email`
-    result: Optional[UserORM] = await session.execute(
-        select(UserORM).filter_by(email=form_data.username)
-    )
-    user: Optional[UserORM] = result.scalar_one_or_none()
+    result = await session.execute(select(UserORM).filter_by(email=form_data.username))
+    user = result.scalar_one_or_none()
     if not user:
-        result: Optional[AdminORM] = await session.execute(
-            select(AdminORM).filter_by(email=form_data.username)
-        )
+        result = await session.execute(select(AdminORM).filter_by(email=form_data.username))
         admin = result.scalar_one_or_none()
         user = admin if admin else None
 

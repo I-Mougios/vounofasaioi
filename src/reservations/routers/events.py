@@ -1,7 +1,7 @@
 # src/reservations/routers/events.py
-from typing import AsyncGenerator
-
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import PlainTextResponse
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +11,28 @@ from models.schema import AdminModel, EventModel
 from reservations.dependencies import get_current_admin, open_async_session
 
 router = APIRouter(prefix="/events", tags=["events"])
+
+
+@router.get(
+    "/",
+    response_model=EventResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get event by name",
+    responses={
+        status.HTTP_200_OK: {"Description": "Event found"},
+        status.HTTP_404_NOT_FOUND: {"Description": "Event not found"},
+    },
+)
+async def get_event_by_name(
+    event_name: str, session: AsyncSession = Depends(open_async_session)
+) -> EventResponse:
+    result = await session.execute(select(EventORM).filter_by(name=event_name))
+    event_orm = result.scalar_one_or_none()
+    if not event_orm:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    event_response = EventResponse.model_validate(event_orm)
+    return event_response
 
 
 @router.post(
@@ -51,7 +73,7 @@ Example: \n
 )
 async def register(
     event_model: EventModel,
-    session: AsyncGenerator[AsyncSession, None] = Depends(open_async_session),
+    session: AsyncSession = Depends(open_async_session),
     _current_admin: AdminModel = Depends(get_current_admin),
 ) -> EventResponse:
     event_orm = EventORM.from_attributes(event_model)
@@ -65,3 +87,38 @@ async def register(
     await session.refresh(event_orm)
 
     return EventResponse.model_validate(event_orm)
+
+
+@router.delete(
+    "/delete",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete an event",
+    description="Delete an event by name",
+    responses={
+        status.HTTP_204_NO_CONTENT: {"description": "Event successfully deleted"},
+        status.HTTP_404_NOT_FOUND: {"description": "Invalid input or event creation failed"},
+    },
+)
+async def delete_event(
+    _get_current_admin: AdminModel = Depends(get_current_admin),
+    session: AsyncSession = Depends(open_async_session),
+    event_name: str = Query(
+        ...,
+        min_length=1,
+        strip_whitespace=True,
+        description="Name of the event to delete",
+    ),
+) -> PlainTextResponse:
+    result = await session.execute(select(EventORM).filter_by(name=event_name))
+    events_orm = result.scalars().all()
+
+    if events_orm:
+        for event in events_orm:
+            await session.delete(event)
+        await session.commit()
+        return PlainTextResponse(
+            f"Event with name {event_name} successfully deleted. Found {len(events_orm)}.",
+            status_code=status.HTTP_204_NO_CONTENT,
+        )
+
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")

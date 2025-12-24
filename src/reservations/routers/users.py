@@ -242,13 +242,14 @@ async def delete_me(
 
 @router.get(
     "/",
-    response_model=list[UserModel],
+    response_model=list[UserResponse],
     summary="List users",
     description="Returns up to 100 users from the database. Intended for development/debugging.",
 )
-def list_users(session: AsyncSession = Depends(open_async_session)) -> list[UserModel]:
-    users_orm = session.execute(select(UserORM).limit(100).all())
-    return [UserResponse.model_validate(user) for user in users_orm]
+async def list_users(session: AsyncSession = Depends(open_async_session)) -> list[UserResponse]:
+    result = await session.execute(select(UserORM).limit(100))
+    users = result.scalars()
+    return [UserResponse.model_validate(user) for user in users]
 
 
 @router.delete(
@@ -268,11 +269,11 @@ async def delete_all_users(
     session: AsyncSession = Depends(open_async_session),
 ) -> PlainTextResponse:
     try:
-        session.delete(UserORM)
+        await session.delete(UserORM)
         delete_count = await session.commit()
         return PlainTextResponse(content=f"{delete_count} users deleted successfully")
     except SQLAlchemyError as e:
-        session.rollback()
+        await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error deleting users: {str(e)}",

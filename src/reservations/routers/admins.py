@@ -61,7 +61,7 @@ async def register(
         token = create_access_token({"sub": admin_orm.email})
 
     except SQLAlchemyError as e:
-        session.rollback()
+        await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database error during admin insertion: {str(e)}",
