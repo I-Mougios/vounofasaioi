@@ -1,10 +1,15 @@
 # tests/conftest.py
+from typing import AsyncGenerator
+
 import pytest
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
 from icecream import ic
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from configs import DBConfig, bool_
+from database.engine import engine
 from database.schema import (
     AddressORM,
     AdminORM,
@@ -22,6 +27,7 @@ from models.schema import (
     PaymentModel,
     UserModel,
 )
+from reservations.main import app
 
 username = DBConfig.user.get("username")
 password = DBConfig.user.get("password")
@@ -31,17 +37,31 @@ echo = DBConfig.service.get("echo", default=False, cast=bool_)
 database = DBConfig.service.get("database")
 
 mysql_uri = ic(f"mysql+pymysql://{username}:{password}@{host}:{port}/{database}")
-engine = create_engine(mysql_uri, echo=echo)
+async_mysql_uri = ic(f"mysql+aiomysql://{username}:{password}@{host}:{port}/{database}")
 
 
+# ============== SYNC ENGINE-SESSION ==================
 @pytest.fixture(scope="function")
 def session():
+    engine = create_engine(mysql_uri, echo=echo)
     session = Session(engine, autoflush=False, expire_on_commit=True)
     try:
         yield session
     finally:
         session.rollback()
         session.close()
+
+
+# ============== ASYNC ENGINE- Client ==================
+@pytest_asyncio.fixture
+async def client() -> AsyncGenerator[AsyncClient, None]:
+    transport = ASGITransport(app=app)
+    client = AsyncClient(base_url="http://test", transport=transport)
+    try:
+        yield client
+    finally:
+        await client.aclose()
+        await engine.dispose()
 
 
 # ====== ADMINS ====
