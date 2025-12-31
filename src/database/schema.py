@@ -80,7 +80,7 @@ class EventORM(TimestampBase):
     __tablename__ = DBConfig.tables.events
 
     id_: Mapped[int] = mapped_column("id", Integer, autoincrement=True, primary_key=True)
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     description: Mapped[str] = mapped_column(Text, nullable=True)
     status: Mapped[EventStatus] = mapped_column(
         Enum(EventStatus),

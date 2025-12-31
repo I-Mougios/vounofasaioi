@@ -14,7 +14,7 @@ router = APIRouter(prefix="/events", tags=["events"])
 
 
 @router.get(
-    "/",
+    "",
     response_model=EventResponse,
     status_code=status.HTTP_200_OK,
     summary="Get event by name",
@@ -110,14 +110,13 @@ async def delete_event(
     ),
 ) -> PlainTextResponse:
     result = await session.execute(select(EventORM).filter_by(name=event_name))
-    events_orm = result.scalars().all()
+    event_orm = result.scalar_one_or_none()
 
-    if events_orm:
-        for event in events_orm:
-            await session.delete(event)
+    if event_orm:
+        await session.delete(event_orm)
         await session.commit()
         return PlainTextResponse(
-            f"Event with name {event_name} successfully deleted. Found {len(events_orm)}.",
+            f"Event with name {event_name} successfully deleted.",
             status_code=status.HTTP_204_NO_CONTENT,
         )
 
