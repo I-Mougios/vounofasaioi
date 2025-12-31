@@ -98,7 +98,7 @@ async def get_current_admin(
         )
 
     result = await session.execute(select(AdminORM).filter_by(email=email))
-    admin: Optional[AdminORM] = result.scalars().first()
+    admin: Optional[AdminORM] = result.scalar_one_or_none()
     if admin is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail=f"No admin found with email: {email}"
