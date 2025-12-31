@@ -102,14 +102,21 @@ async def test_insert_existing_user_raise_error(client, user_one):
 
 
 @pytest.mark.asyncio
-async def test_insert_event(client, admin_token, event_one):
+async def test_insert_get_delete_event(client, admin_token, event_one):
+    # Insert
     response = await client.post(
         "/events/register", headers={"Authorization": f"Bearer {admin_token}"}, json=event_one
     )
     assert response.status_code == 201
     event_name = response.json()["name"]
     event_name_encoded = quote(event_name)
-
+    # Get
+    response = await client.get(
+        f"/events?event_name={event_name_encoded}",
+    )
+    assert response.status_code == 200
+    assert response.json()["name"] == event_one["name"]
+    # Delete
     response = await client.delete(
         f"/events/delete?event_name={event_name_encoded}",
         headers={"Authorization": f"Bearer {admin_token}"},
