@@ -23,26 +23,23 @@ def test_user_deletion_sets_user_id_null_in_bookings_and_cancellations(session, 
 def test_booking_deletion_cascades_to_payment_and_cancellation(session, populated_db):
     # booking with id=3 is related to a cancellation(id=1), payment(id=3)
     booking = session.get(BookingORM, 3)
-    num_of_cancellations_before_booking_deletion = session.scalar(
-        sa.select(sa.func.count(CancellationORM.id_))
-    )
+    payment_id = booking.payment.id
+    cancellation_id = booking.cancellation.id
 
     assert booking is not None
     assert booking.payment is not None
     assert booking.cancellation is not None
-
     # Act
     session.delete(booking)
     session.flush()
-    num_of_cancellations_after_booking_deletion = session.scalar(
-        sa.select(sa.func.count(CancellationORM.id_))
-    )
+
+    cancellation_orm_to_deleted = session.get(CancellationORM, cancellation_id)
+    payment_orm_to_deleted = session.get(PaymentORM, payment_id)
 
     # Assert
-    assert session.get(PaymentORM, 3) is None
-    assert (
-        num_of_cancellations_after_booking_deletion < num_of_cancellations_before_booking_deletion
-    )
+    assert cancellation_orm_to_deleted is None
+    assert payment_orm_to_deleted is None
+
 
 
 def test_event_deletion_cascades_to_bookings_and_children(session, populated_db):
